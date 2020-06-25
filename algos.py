@@ -512,50 +512,47 @@ class ProximalOffline(object):
                 critic_qs = critic_qs.mean(0)
 
             # Q computed by actions in data-set.
-            # data_qs, data_std_q = self.critic(state, action, with_var=True)
-            # #data_qs = data_qs.view(self.num_qs, 1)
-            # #data_std_q = torch.std(data_qs, dim=0, keepdim=False, unbiased=False)
+            data_qs, data_std_q = self.critic(state, action, with_var=True)
+            #data_qs = data_qs.view(self.num_qs, 1)
+            #data_std_q = torch.std(data_qs, dim=0, keepdim=False, unbiased=False)
 
-            # if not self.use_ensemble:
-            #     data_std_q = torch.zeros_like(data_std_q).to(device)
+            if not self.use_ensemble:
+                data_std_q = torch.zeros_like(data_std_q).to(device)
 
-            # if self.version == '0':
-            #     data_qs = data_qs.min(0)[0]
-            # elif self.version == '1':
-            #     data_qs = data_qs.max(0)[0]
-            # elif self.version == '2':
-            #     data_qs = data_qs.mean(0)
+            if self.version == '0':
+                data_qs = data_qs.min(0)[0]
+            elif self.version == '1':
+                data_qs = data_qs.max(0)[0]
+            elif self.version == '2':
+                data_qs = data_qs.mean(0)
 
-            # # Q computed by actions from the VAE.
-            # cloned_qs, cloned_std_q = self.critic.q_all(state, sampled_actions[:, 0, :], with_var=True)
-            # cloned_qs = self.critic.q_all(state.unsqueeze(0).repeat(num_samples, 1, 1).view(num_samples * state.size(0), state.size(1)), sampled_actions.permute(1, 0, 2).contiguous().view(num_samples*sampled_actions.size(0), sampled_actions.size(2)))
-            # cloned_qs = cloned_qs.view(self.num_qs, num_samples, sampled_actions.size(0), 1)
-            # cloned_qs = cloned_qs.mean(1)
-            # cloned_std_q = torch.std(cloned_qs, dim=0, keepdim=False, unbiased=False)
+            # Q computed by actions from the VAE.
+            cloned_qs, cloned_std_q = self.critic.q_all(state, sampled_actions[:, 0, :], with_var=True)
+            cloned_qs = self.critic.q_all(state.unsqueeze(0).repeat(num_samples, 1, 1).view(num_samples * state.size(0), state.size(1)), sampled_actions.permute(1, 0, 2).contiguous().view(num_samples*sampled_actions.size(0), sampled_actions.size(2)))
+            cloned_qs = cloned_qs.view(self.num_qs, num_samples, sampled_actions.size(0), 1)
+            cloned_qs = cloned_qs.mean(1)
+            cloned_std_q = torch.std(cloned_qs, dim=0, keepdim=False, unbiased=False)
 
-            # if not self.use_ensemble:
-            #     cloned_std_q = torch.zeros_like(cloned_std_q).to(device)
+            if not self.use_ensemble:
+                cloned_std_q = torch.zeros_like(cloned_std_q).to(device)
                 
-            # if self.version == '0':
-            #     cloned_qs = cloned_qs.min(0)[0]
-            # elif self.version == '1':
-            #     cloned_qs = cloned_qs.max(0)[0]
-            # elif self.version == '2':
-            #     cloned_qs = cloned_qs.mean(0)
+            if self.version == '0':
+                cloned_qs = cloned_qs.min(0)[0]
+            elif self.version == '1':
+                cloned_qs = cloned_qs.max(0)[0]
+            elif self.version == '2':
+                cloned_qs = cloned_qs.mean(0)
 
-            # if self.adv_choice == 0:
-            #     advantage = critic_qs - data_qs
-            # elif self.adv_choice == 1:
-            #     advantage = critic_qs - cloned_qs
+            if self.adv_choice == 0:
+                advantage = critic_qs - data_qs
+            elif self.adv_choice == 1:
+                advantage = critic_qs - cloned_qs
 
-            # -------------------------------------------------------------------------------------------
-
-            # logp_cloned = self.cloned_policy.actor.log_pis(state, actor_action)
-            # logp_actor = self.actor.log_pis(state, actor_action)
-            # ratio = torch.exp(logp_actor - logp_cloned)
-            # clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
-            # actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
-            actor_loss = -critic_qs
+            logp_cloned = self.cloned_policy.actor.log_pis(state, actor_action)
+            logp_actor = self.actor.log_pis(state, actor_action)
+            ratio = torch.exp(logp_actor - logp_cloned)
+            clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
+            actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
 
             std_loss = self._lambda*(np.sqrt((1 - self.delta_conf)/self.delta_conf)) * std_q.detach() 
 
@@ -563,6 +560,11 @@ class ProximalOffline(object):
             actor_loss.backward()
             # torch.nn.utils.clip_grad_norm(self.actor.parameters(), 10.0)
             self.actor_optimizer.step()
+
+            print("{}\n{}\n{}\n{}\n{}\n".format(target_Q, critic_loss, actor_action, actor_actions, actor_action))
+            print("{}\n{}\n{}\n{}\n{}\n".format(critic_qs, data_qs, advantage, logp_cloned, logp_actor))
+            # -------------------------------------------------------------------------------------------
+
 
             # Update Target Networks 
             for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
@@ -601,6 +603,7 @@ class ProximalOffline(object):
             raw_action_divergence.cpu().data.numpy()
         ))
         self.epoch = self.epoch + 1
+        _ = input(" ")
 
 def weighted_mse_loss(inputs, target, weights):
     return torch.mean(weights * (inputs - target)**2)
