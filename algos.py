@@ -479,6 +479,7 @@ class ProximalOffline(object):
             num_samples = self.num_samples_match
             sampled_actions, raw_sampled_actions = self.vae.decode_multiple(state, num_decode=num_samples)  # B x N x d
             actor_actions, raw_actor_actions = self.actor.sample_multiple(state, num_samples)#  num)
+            actor_action = self.actor(state)
 
             # MMD done on raw actions (before tanh), to prevent gradient dying out due to saturation
             # if self.use_kl:
@@ -549,8 +550,8 @@ class ProximalOffline(object):
 
             # -------------------------------------------------------------------------------------------
 
-            logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions[:, 0, :])
-            logp_actor = self.actor.log_pis(state, actor_actions[:, 0, :])
+            logp_cloned = self.cloned_policy.actor.log_pis(state, actor_action)
+            logp_actor = self.actor.log_pis(state, actor_action)
             ratio = torch.exp(logp_actor - logp_cloned)
             clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
             actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
