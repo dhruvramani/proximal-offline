@@ -455,13 +455,13 @@ class ProximalOffline(object):
                 
                 # Compute value of perturbed actions sampled from the Actor Target
                 target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
-
+                print("target_Qs", target_Qs)
                 # Soft Clipped Double Q-learning 
                 target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
                 target_Q = target_Q.view(batch_size, -1).max(1)[0].view(-1, 1)
                 target_Q = reward + done * discount * target_Q
 
-            print("Target Q", target_Q)
+            print("target_Q", target_Q)
             current_Qs = self.critic(state, action, with_var=False)
             print("current_Qs", current_Qs)
             if self.use_bootstrap: 
