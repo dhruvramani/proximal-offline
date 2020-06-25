@@ -135,8 +135,8 @@ if __name__ == "__main__":
     parser.add_argument('--margin_threshold', default=10, type=float)		  # for DQfD baseline=
     parser.add_argument('--adv_choice', default=0, type=int)
     parser.add_argument('--clip_ratio', default=0.2, type=float)
-    parser.add_argument('--cloned_timesteps', default=5e3, type=float)
-    parser.add_argument('--cloned_eval_freq', default=300, type=float)
+    parser.add_argument('--cloned_timesteps', default=1e4, type=float)
+    parser.add_argument('--cloned_eval_freq', default=1e3, type=float)
     args = parser.parse_args()
 
     # Use any random seed, and not the user provided seed

@@ -511,9 +511,9 @@ class ProximalOffline(object):
                 critic_qs = critic_qs.mean(0)
 
             # Q computed by actions in data-set.
-            data_qs, data_std_q = self.critic.q_all(state, action, with_var=True)
-            data_qs = data_qs.view(self.num_qs, 1)
-            data_std_q = torch.std(data_qs, dim=0, keepdim=False, unbiased=False)
+            data_qs, data_std_q = self.critic(state, action, with_var=True)
+            #data_qs = data_qs.view(self.num_qs, 1)
+            #data_std_q = torch.std(data_qs, dim=0, keepdim=False, unbiased=False)
 
             if not self.use_ensemble:
                 data_std_q = torch.zeros_like(data_std_q).to(device)
