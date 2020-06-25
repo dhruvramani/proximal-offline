@@ -331,7 +331,7 @@ class ClonedPolicy(object):
                 action_divergence = ((sampled_actions - actor_actions)**2).sum(-1).mean(0)
                 raw_action_divergence = ((raw_sampled_actions - raw_actor_actions)**2).sum(-1).mean(0)
 
-                print("Action Divergence {}\n Raw Action Divergence {}".format(action_divergence, raw_action_divergence))
+                print("Action Divergence {}\n Raw Action Divergence {}".format(action_divergence.mean(), raw_action_divergence.mean()))
 
 class ProximalOffline(object):
     def __init__(self, num_qs, state_dim, action_dim, max_action, cloned_policy, delta_conf=0.1, use_bootstrap=True, version=0, lambda_=0.4,
