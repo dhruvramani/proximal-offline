@@ -89,7 +89,7 @@ class RegularActor(nn.Module):
         mean_a = self.mean(a)
         log_std_a = self.log_std(a)
         std_a = torch.exp(log_std_a)
-        normal_dist = td.Normal(loc=mean_a, scale=std_a, validate_args=True)
+        normal_dist = td.Normal(loc=mean_a, scale=std_a, validate_args=False)
         if raw_action is None:
             raw_action = atanh(action)
         else:
