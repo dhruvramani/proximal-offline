@@ -324,12 +324,12 @@ class ClonedPolicy(object):
             vae_loss.backward()
             self.vae_optimizer.step()
 
-            if int(iterations % 50) == 0:
+            if it == iterations - 1:
                 sampled_actions, raw_sampled_actions = self.vae.decode_multiple(state, num_decode=num_samples_match)  # B x N x d
                 actor_actions, raw_actor_actions = self.actor.sample_multiple(state, num_samples_match)
 
-                action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
-                raw_action_divergence = ((raw_sampled_actions - raw_actor_actions)**2).sum(-1)
+                action_divergence = ((sampled_actions - actor_actions)**2).sum(-1).mean(0)
+                raw_action_divergence = ((raw_sampled_actions - raw_actor_actions)**2).sum(-1).mean(0)
 
                 print("Action Divergence {}\n Raw Action Divergence {}".format(action_divergence, raw_action_divergence))
 
