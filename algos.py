@@ -474,15 +474,26 @@ class ProximalOffline(object):
             actor_actions = self.actor(state)
             action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
 
+            actor_q1, actor_q2 = self.critic(state, actor_actions)
+            cloned_q1, cloned_q2 = self.critic(state, sampled_actions)
+
+            if self.adv_choice == 0:
+                advantage = ((actor_q1 - current_Q1) + (actor_q2 - current_Q2)) / 2
+            elif self.adv_choice == 1:
+                advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
+
+            logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
+            logp_actor = self.actor.log_pis(state, actor_actions)
+            ratio = torch.exp(logp_actor - logp_cloned)
+            clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
+            actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
+
             # Update through DPG
-            actor_loss = -self.critic.q1(state, actor_actions).mean()
+            #actor_loss = -self.critic.q1(state, actor_actions).mean()
                 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
             self.actor_optimizer.step()
-
-            print(actor_actions.size(), action.size())
-            _ = input("pause")
             # Update Target Networks 
             for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
                     target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
