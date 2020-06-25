@@ -445,7 +445,7 @@ class ProximalOffline(object):
             vae_loss = recon_loss + 0.5 * KL_loss
 
             self.vae_optimizer.zero_grad()
-            vae_loss.backward()
+            vae_loss.backward(retain_graph=True)
             self.vae_optimizer.step()
 
             # Critic Training
@@ -466,7 +466,7 @@ class ProximalOffline(object):
             critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
 
             self.critic_optimizer.zero_grad()
-            critic_loss.backward()
+            critic_loss.backward(retain_graph=True)
             self.critic_optimizer.step()
 
             # Pertubation Model / Action Training
