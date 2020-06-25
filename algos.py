@@ -477,7 +477,7 @@ class ProximalOffline(object):
             critic_loss.backward()
             self.critic_optimizer.step()
 
-            print("critic_weights", list(self.critic.parameters())[0].data)
+            print("critic_weights", np.isnan(np.min(list(self.critic.parameters())[0].data.numpy())))
             # Action Training
             # If you take less samples (but not too less, else it becomes statistically inefficient), it is closer to a uniform support set matching
             num_samples = self.num_samples_match
