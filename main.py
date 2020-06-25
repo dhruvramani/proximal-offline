@@ -120,7 +120,7 @@ if __name__ == "__main__":
     parser.add_argument("--lamda", default=0.5, type=float)                   # Unused parameter -- please ignore 
     parser.add_argument("--threshold", default=0.05, type=float)              # Unused parameter -- please ignore
     parser.add_argument('--use_bootstrap', default=False, type=bool)          # Whether to use bootstrapped ensembles or plain ensembles
-    parser.add_argument('--algo_name', default="BEAR", type=str)              # Which algo to run (see the options below in the main function)
+    parser.add_argument('--algo_name', default="ProximalOffline", type=str)              # Which algo to run (see the options below in the main function)
     parser.add_argument('--mode', default='hardcoded', type=str)              # Whether to do automatic lagrange dual descent or manually tune coefficient of the MMD loss (prefered "auto")
     parser.add_argument('--num_samples_match', default=10, type=int)          # number of samples to do matching in MMD
     parser.add_argument('--mmd_sigma', default=20.0, type=float)              # The bandwidth of the MMD kernel parameter
@@ -132,7 +132,11 @@ if __name__ == "__main__":
     parser.add_argument('--use_behaviour_policy', default='False', type=str)       
     parser.add_argument('--cloning', default="False", type=str)
     parser.add_argument('--num_random', default=10, type=int)
-    parser.add_argument('--margin_threshold', default=10, type=float)		  # for DQfD baseline
+    parser.add_argument('--margin_threshold', default=10, type=float)		  # for DQfD baseline=
+    parser.add_argument('--adv_choice', default=0, type=int)
+    parser.add_argument('--clip_ratio', default=0.2, type=float)
+    parser.add_argument('--cloned_timesteps', default=5e3, type=float)
+    parser.add_argument('--cloned_eval_freq', default=300, type=float)
     args = parser.parse_args()
 
     # Use any random seed, and not the user provided seed
@@ -171,6 +175,29 @@ if __name__ == "__main__":
     print('Max action: ', max_action)
 
     del dataset
+
+    cloned_policy = None
+    if algo_name == 'ProximalOffline':
+        cloned_policy = algos.ClonedPolicy(state_dim, action_dim, max_action)
+
+        training_iters = 0
+        while training_iters < args.cloned_timesteps: 
+            pol_vals = cloned_policy.train(replay_buffer, iterations=int(args.cloned_eval_freq))
+
+            # NOTE : @dhruvramani - commeneted this for colabs
+            # ret_eval, var_ret, median_ret = evaluate_policy(policy)
+            # evaluations.append(ret_eval)
+            # np.save("./results/" + file_name, evaluations)
+
+            training_iters += args.cloned_eval_freq
+            print ("Cloned Training iterations: " + str(training_iters))
+            # logger.record_tabular('Training Epochs', int(training_iters // int(args.eval_freq)))
+            # # logger.record_tabular('AverageReturn', ret_eval)
+            # # logger.record_tabular('VarianceReturn', var_ret)
+            # # logger.record_tabular('MedianReturn', median_ret)
+            # logger.dump_tabular()
+            # print("Iter done")
+
 
     variant = dict(
         algorithm=algo_name,
@@ -229,6 +256,12 @@ if __name__ == "__main__":
             use_kl=(True if args.distance_type == "KL" else False),
             use_ensemble=(False if args.use_ensemble_variance == "False" else True),
             kernel_type=args.kernel_type)
+    elif algo_name == 'ProximalOffline':
+        policy = algos.ProximalOffline(2, state_dim, action_dim, max_action, cloned_policy, delta_conf=0.1, use_bootstrap=False,
+            version=args.version, lambda_=float(args.lamda), threshold=float(args.threshold), 
+            num_samples_match=args.num_samples_match, use_ensemble=(False if args.use_ensemble_variance == "False" else True),
+            adv_choice=args.adv_choice, clip_ratio=adv_choice.clip_ratio)
+
     
     evaluations = []
 

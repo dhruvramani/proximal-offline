@@ -97,6 +97,7 @@ class DDPG(object):
 			self.critic_optimizer.step()
 
 			# Compute actor loss
+			# TODO : Modfy this
 			actor_loss = -self.critic(state, self.actor(state)).mean()
 			
 			# Optimize the actor 
