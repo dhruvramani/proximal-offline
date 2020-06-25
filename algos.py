@@ -93,8 +93,8 @@ class RegularActor(nn.Module):
         if raw_action is None:
             raw_action = atanh(action)
         else:
-            action = torch.tanh(raw_action)
-        log_normal = normal_dist.log_prob(raw_action)
+            action = torch.tanh(raw_action + 1e-5)
+        log_normal = normal_dist.log_prob(raw_action + 1e-5)
         log_pis = log_normal.sum(-1)
         log_pis = log_pis - (1.0 - action**2).clamp(min=1e-6).log().sum(-1)
         return log_pis
@@ -461,7 +461,9 @@ class ProximalOffline(object):
                 target_Q = target_Q.view(batch_size, -1).max(1)[0].view(-1, 1)
                 target_Q = reward + done * discount * target_Q
 
+            print("Target Q", target_Q)
             current_Qs = self.critic(state, action, with_var=False)
+            print("current_Qs", current_Qs)
             if self.use_bootstrap: 
                 critic_loss = (F.mse_loss(current_Qs[0], target_Q, reduction='none') * mask[:, 0:1]).mean() +\
                             (F.mse_loss(current_Qs[1], target_Q, reduction='none') * mask[:, 1:2]).mean() 
@@ -470,10 +472,12 @@ class ProximalOffline(object):
             else:
                 critic_loss = F.mse_loss(current_Qs[0], target_Q) + F.mse_loss(current_Qs[1], target_Q) #+ F.mse_loss(current_Qs[2], target_Q) + F.mse_loss(current_Qs[3], target_Q)
 
+            print("critic_loss", critic_loss)
             self.critic_optimizer.zero_grad()
             critic_loss.backward()
             self.critic_optimizer.step()
 
+            print("critic_weights", self.critic.parameters()[0].data)
             # Action Training
             # If you take less samples (but not too less, else it becomes statistically inefficient), it is closer to a uniform support set matching
             num_samples = self.num_samples_match
@@ -490,6 +494,7 @@ class ProximalOffline(object):
             #     else:
             #         mmd_loss = self.mmd_loss_laplacian(raw_sampled_actions, raw_actor_actions, sigma=self.mmd_sigma)
 
+            print("actor_action", actor_action)
             action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
             raw_action_divergence = ((raw_sampled_actions - raw_actor_actions)**2).sum(-1)
 
@@ -511,6 +516,7 @@ class ProximalOffline(object):
             elif self.version == '2':
                 critic_qs = critic_qs.mean(0)
 
+            print("critic_qs", critic_qs)
             # Q computed by actions in data-set.
             data_qs, data_std_q = self.critic(state, action, with_var=True)
             #data_qs = data_qs.view(self.num_qs, 1)
@@ -543,10 +549,13 @@ class ProximalOffline(object):
             elif self.version == '2':
                 cloned_qs = cloned_qs.mean(0)
 
+            print("data_qs", data_qs)
             if self.adv_choice == 0:
                 advantage = critic_qs - data_qs
             elif self.adv_choice == 1:
                 advantage = critic_qs - cloned_qs
+
+            print("advantage", advantage)
 
             logp_cloned = self.cloned_policy.actor.log_pis(state, actor_action)
             logp_actor = self.actor.log_pis(state, actor_action)
@@ -556,13 +565,15 @@ class ProximalOffline(object):
 
             std_loss = self._lambda*(np.sqrt((1 - self.delta_conf)/self.delta_conf)) * std_q.detach() 
 
+            print("logp_cloned", logp_cloned)
+            print("logp_actor", logp_actor)
+            print("clip_adv", clip_adv)
+            print("actor_loss", actor_loss)
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
             # torch.nn.utils.clip_grad_norm(self.actor.parameters(), 10.0)
             self.actor_optimizer.step()
 
-            print("{}\n{}\n{}\n{}\n{}\n".format(target_Q, critic_loss, actor_action, actor_actions, actor_action))
-            print("{}\n{}\n{}\n{}\n{}\n".format(critic_qs, data_qs, advantage, logp_cloned, logp_actor))
             _ = input(" ")
             # -------------------------------------------------------------------------------------------
 
