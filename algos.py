@@ -481,7 +481,8 @@ class ProximalOffline(object):
             actor_loss.backward()
             self.actor_optimizer.step()
 
-
+            print(actor_loss)
+            _ = input("pause")
             # Update Target Networks 
             for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
                     target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
