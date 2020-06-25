@@ -260,7 +260,7 @@ if __name__ == "__main__":
         policy = algos.ProximalOffline(2, state_dim, action_dim, max_action, cloned_policy, delta_conf=0.1, use_bootstrap=False,
             version=args.version, lambda_=float(args.lamda), threshold=float(args.threshold), 
             num_samples_match=args.num_samples_match, use_ensemble=(False if args.use_ensemble_variance == "False" else True),
-            adv_choice=args.adv_choice, clip_ratio=adv_choice.clip_ratio)
+            adv_choice=args.adv_choice, clip_ratio=args.clip_ratio)
 
     
     evaluations = []
