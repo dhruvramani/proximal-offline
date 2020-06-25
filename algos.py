@@ -305,7 +305,7 @@ class ClonedPolicy(object):
             done            = torch.FloatTensor(1 - done).to(device)
             mask            = torch.FloatTensor(mask).to(device) 
 
-            pred_action, mean, std = self.actor(state)
+            pred_action = self.actor(state) #  mean, std =
             recon_loss = F.mse_loss(pred_action, action)
 
             #KL_loss = -0.5 * (1 + torch.log(std.pow(2)) - mean.pow(2) - std.pow(2)).mean()
