@@ -575,9 +575,6 @@ class ProximalOffline(object):
             'Q_target',
             target_Q.cpu().data.numpy(),
         ))
-        if self.mode == 'auto':
-            # logger.record_tabular('Lagrange1', self.log_lagrange1.exp().cpu().data.numpy())
-            logger.record_tabular('Lagrange2', self.log_lagrange2.exp().cpu().data.numpy())
 
         logger.record_tabular('Actor Loss', actor_loss.cpu().data.numpy())
         logger.record_tabular('Critic Loss', critic_loss.cpu().data.numpy())
