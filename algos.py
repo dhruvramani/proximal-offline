@@ -563,6 +563,7 @@ class ProximalOffline(object):
 
             print("{}\n{}\n{}\n{}\n{}\n".format(target_Q, critic_loss, actor_action, actor_actions, actor_action))
             print("{}\n{}\n{}\n{}\n{}\n".format(critic_qs, data_qs, advantage, logp_cloned, logp_actor))
+            _ = input(" ")
             # -------------------------------------------------------------------------------------------
 
 
@@ -603,7 +604,6 @@ class ProximalOffline(object):
             raw_action_divergence.cpu().data.numpy()
         ))
         self.epoch = self.epoch + 1
-        _ = input(" ")
 
 def weighted_mse_loss(inputs, target, weights):
     return torch.mean(weights * (inputs - target)**2)
