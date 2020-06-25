@@ -437,69 +437,70 @@ class ProximalOffline(object):
             reward          = torch.FloatTensor(reward).to(device)
             done            = torch.FloatTensor(1 - done).to(device)
 
+            with torch.autograd.set_detect_anomaly(True):
 
-            # Variational Auto-Encoder Training
-            recon, mean, std = self.vae(state, action)
-            recon_loss = F.mse_loss(recon, action)
-            KL_loss = -0.5 * (1 + torch.log(std.pow(2)) - mean.pow(2) - std.pow(2)).mean()
-            vae_loss = recon_loss + 0.5 * KL_loss
+                # Variational Auto-Encoder Training
+                recon, mean, std = self.vae(state, action)
+                recon_loss = F.mse_loss(recon, action)
+                KL_loss = -0.5 * (1 + torch.log(std.pow(2)) - mean.pow(2) - std.pow(2)).mean()
+                vae_loss = recon_loss + 0.5 * KL_loss
 
-            self.vae_optimizer.zero_grad()
-            vae_loss.backward(retain_graph=True)
-            self.vae_optimizer.step()
+                self.vae_optimizer.zero_grad()
+                vae_loss.backward(retain_graph=True)
+                self.vae_optimizer.step()
 
-            # Critic Training
-            with torch.no_grad():
-                # Duplicate state 10 times
-                state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
-                
-                target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
+                # Critic Training
+                with torch.no_grad():
+                    # Duplicate state 10 times
+                    state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
+                    
+                    target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
 
-                # Soft Clipped Double Q-learning 
-                target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
-                target_Q = target_Q.view(batch_size, -1).max(1)[0].view(-1, 1)
-                target_Q = reward + done * discount * target_Q
+                    # Soft Clipped Double Q-learning 
+                    target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
+                    target_Q = target_Q.view(batch_size, -1).max(1)[0].view(-1, 1)
+                    target_Q = reward + done * discount * target_Q
 
-                target_Q = reward + done * discount * target_Q
+                    target_Q = reward + done * discount * target_Q
 
-            current_Q1, current_Q2 = self.critic(state, action)
-            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+                current_Q1, current_Q2 = self.critic(state, action)
+                critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
 
-            self.critic_optimizer.zero_grad()
-            critic_loss.backward(retain_graph=True)
-            self.critic_optimizer.step()
+                self.critic_optimizer.zero_grad()
+                critic_loss.backward(retain_graph=True)
+                self.critic_optimizer.step()
 
-            # Pertubation Model / Action Training
-            sampled_actions = self.vae.decode(state)
-            actor_actions = self.actor(state)
-            action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
+                # Pertubation Model / Action Training
+                sampled_actions = self.vae.decode(state)
+                actor_actions = self.actor(state)
+                action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
 
-            actor_q1, actor_q2 = self.critic(state, actor_actions)
-            cloned_q1, cloned_q2 = self.critic(state, sampled_actions)
+                actor_q1, actor_q2 = self.critic(state, actor_actions)
+                cloned_q1, cloned_q2 = self.critic(state, sampled_actions)
 
-            if self.adv_choice == 0:
-                advantage = ((actor_q1 - current_Q1)) #+ (actor_q2 - current_Q2)) / 2
-            elif self.adv_choice == 1:
-                advantage = ((actor_q1 - cloned_q1)) #+ (actor_q2 - cloned_q2)) / 2
+                if self.adv_choice == 0:
+                    advantage = ((actor_q1 - current_Q1) + (actor_q2 - current_Q2)) / 2
+                elif self.adv_choice == 1:
+                    advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
-            logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
-            logp_actor = self.actor.log_pis(state, actor_actions)
-            ratio = torch.exp(logp_actor - logp_cloned)
-            clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
-            actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
+                logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
+                logp_actor = self.actor.log_pis(state, actor_actions)
+                ratio = torch.exp(logp_actor - logp_cloned)
+                clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
+                actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
 
-            # Update through DPG
-            #actor_loss = -self.critic.q1(state, actor_actions).mean()
-                
-            self.actor_optimizer.zero_grad()
-            actor_loss.backward(retain_graph=True)
-            self.actor_optimizer.step()
-            # Update Target Networks 
-            for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
-                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+                # Update through DPG
+                #actor_loss = -self.critic.q1(state, actor_actions).mean()
+                    
+                self.actor_optimizer.zero_grad()
+                actor_loss.backward(retain_graph=True)
+                self.actor_optimizer.step()
+                # Update Target Networks 
+                for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
+                        target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
-            for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
-                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+                for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
+                        target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
             
         # DO ALL logging here
         logger.record_dict(create_stats_ordered_dict(
