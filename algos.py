@@ -478,9 +478,9 @@ class ProximalOffline(object):
             cloned_q1, cloned_q2 = self.critic(state, sampled_actions)
 
             if self.adv_choice == 0:
-                advantage = ((actor_q1 - current_Q1) + (actor_q2 - current_Q2)) / 2
+                advantage = ((actor_q1 - current_Q1)) #+ (actor_q2 - current_Q2)) / 2
             elif self.adv_choice == 1:
-                advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
+                advantage = ((actor_q1 - cloned_q1)) #+ (actor_q2 - cloned_q2)) / 2
 
             logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
             logp_actor = self.actor.log_pis(state, actor_actions)
