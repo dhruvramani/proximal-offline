@@ -477,7 +477,6 @@ class ProximalOffline(object):
             critic_loss.backward()
             self.critic_optimizer.step()
 
-            print("critic_weights", np.isnan(np.min(list(self.critic.parameters())[0].data.cpu().numpy())))
             # Action Training
             # If you take less samples (but not too less, else it becomes statistically inefficient), it is closer to a uniform support set matching
             num_samples = self.num_samples_match
@@ -574,7 +573,6 @@ class ProximalOffline(object):
             # torch.nn.utils.clip_grad_norm(self.actor.parameters(), 10.0)
             self.actor_optimizer.step()
 
-            _ = input(" ")
             # -------------------------------------------------------------------------------------------
 
 
@@ -584,6 +582,11 @@ class ProximalOffline(object):
 
             for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
                     target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+
+            print("critic_weights", np.isnan(np.min(list(self.critic.parameters())[0].data.cpu().numpy())))
+            print("target_critic_weights", np.isnan(np.min(list(self.critic_target.parameters())[0].data.cpu().numpy())))
+            _ = input(" ")
+
 
         # Do all logging here
         logger.record_dict(create_stats_ordered_dict(
