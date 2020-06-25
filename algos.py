@@ -454,7 +454,10 @@ class ProximalOffline(object):
                 state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
                 
                 # Compute value of perturbed actions sampled from the Actor Target
-                target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
+                print("state_rep", state_rep)
+                targ_action = self.actor_target(state_rep)
+                print("targ_action", targ_action)
+                target_Qs = self.critic_target(state_rep, targ_action)
                 print("target_Qs", target_Qs)
                 # Soft Clipped Double Q-learning 
                 target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
