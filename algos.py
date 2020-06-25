@@ -436,9 +436,9 @@ class ProximalOffline(object):
             next_state      = torch.FloatTensor(next_state_np).to(device)
             reward          = torch.FloatTensor(reward).to(device)
             done            = torch.FloatTensor(1 - done).to(device)
-            mask            = torch.FloatTensor(mask).to(device)
-            
-            # Train the Behaviour cloning policy to be able to take more than 1 sample for MMD
+
+
+            # Variational Auto-Encoder Training
             recon, mean, std = self.vae(state, action)
             recon_loss = F.mse_loss(recon, action)
             KL_loss = -0.5 * (1 + torch.log(std.pow(2)) - mean.pow(2) - std.pow(2)).mean()
@@ -448,135 +448,38 @@ class ProximalOffline(object):
             vae_loss.backward()
             self.vae_optimizer.step()
 
-            # Critic Training: In this step, we explicitly compute the actions 
+            # Critic Training
             with torch.no_grad():
-                # Duplicate state 10 times (10 is a hyperparameter chosen by BCQ)
+                # Duplicate state 10 times
                 state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
                 
-                # Compute value of perturbed actions sampled from the Actor Target
-                print("state_rep", state_rep)
-                targ_action = self.actor_target(state_rep)
-                print("targ_action", targ_action)
-                target_Qs = self.critic_target(state_rep, targ_action)
-                print("target_Qs", target_Qs)
+                target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
+
                 # Soft Clipped Double Q-learning 
                 target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
                 target_Q = target_Q.view(batch_size, -1).max(1)[0].view(-1, 1)
                 target_Q = reward + done * discount * target_Q
 
-            print("target_Q", target_Q)
-            current_Qs = self.critic(state, action, with_var=False)
-            print("current_Qs", current_Qs)
-            if self.use_bootstrap: 
-                critic_loss = (F.mse_loss(current_Qs[0], target_Q, reduction='none') * mask[:, 0:1]).mean() +\
-                            (F.mse_loss(current_Qs[1], target_Q, reduction='none') * mask[:, 1:2]).mean() 
-                            # (F.mse_loss(current_Qs[2], target_Q, reduction='none') * mask[:, 2:3]).mean() +\
-                            # (F.mse_loss(current_Qs[3], target_Q, reduction='none') * mask[:, 3:4]).mean()
-            else:
-                critic_loss = F.mse_loss(current_Qs[0], target_Q) + F.mse_loss(current_Qs[1], target_Q) #+ F.mse_loss(current_Qs[2], target_Q) + F.mse_loss(current_Qs[3], target_Q)
+                target_Q = reward + done * discount * target_Q
 
-            print("critic_loss", critic_loss)
+            current_Q1, current_Q2 = self.critic(state, action)
+            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+
             self.critic_optimizer.zero_grad()
             critic_loss.backward()
             self.critic_optimizer.step()
 
-            # Action Training
-            # If you take less samples (but not too less, else it becomes statistically inefficient), it is closer to a uniform support set matching
-            num_samples = self.num_samples_match
-            sampled_actions, raw_sampled_actions = self.vae.decode_multiple(state, num_decode=num_samples)  # B x N x d
-            actor_actions, raw_actor_actions = self.actor.sample_multiple(state, num_samples)#  num)
-            actor_action = self.actor(state)
-
-            # MMD done on raw actions (before tanh), to prevent gradient dying out due to saturation
-            # if self.use_kl:
-            #     mmd_loss = self.kl_loss(raw_sampled_actions, state)
-            # else:
-            #     if self.kernel_type == 'gaussian':
-            #         mmd_loss = self.mmd_loss_gaussian(raw_sampled_actions, raw_actor_actions, sigma=self.mmd_sigma)
-            #     else:
-            #         mmd_loss = self.mmd_loss_laplacian(raw_sampled_actions, raw_actor_actions, sigma=self.mmd_sigma)
-
-            print("actor_action", actor_action)
+            # Pertubation Model / Action Training
+            sampled_actions = self.vae.decode(state)
+            actor_actions = self.actor(state)
             action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
-            raw_action_divergence = ((raw_sampled_actions - raw_actor_actions)**2).sum(-1)
 
-            # NOTE : @dhruvramani - Compute Advantage ---------------------------------------------------
-            # Q computed by the Actor.
-            critic_qs, std_q = self.critic.q_all(state, actor_actions[:, 0, :], with_var=True)
-            critic_qs = self.critic.q_all(state.unsqueeze(0).repeat(num_samples, 1, 1).view(num_samples * state.size(0), state.size(1)), actor_actions.permute(1, 0, 2).contiguous().view(num_samples * actor_actions.size(0), actor_actions.size(2)))
-            critic_qs = critic_qs.view(self.num_qs, num_samples, actor_actions.size(0), 1)
-            critic_qs = critic_qs.mean(1) # Mean over num. of samples
-            std_q = torch.std(critic_qs, dim=0, keepdim=False, unbiased=False)
-
-            if not self.use_ensemble:
-                std_q = torch.zeros_like(std_q).to(device)
+            # Update through DPG
+            actor_loss = -self.critic.q1(state, actor_actions).mean()
                 
-            if self.version == '0':
-                critic_qs = critic_qs.min(0)[0]
-            elif self.version == '1':
-                critic_qs = critic_qs.max(0)[0]
-            elif self.version == '2':
-                critic_qs = critic_qs.mean(0)
-
-            print("critic_qs", critic_qs)
-            # Q computed by actions in data-set.
-            data_qs, data_std_q = self.critic(state, action, with_var=True)
-            #data_qs = data_qs.view(self.num_qs, 1)
-            #data_std_q = torch.std(data_qs, dim=0, keepdim=False, unbiased=False)
-
-            if not self.use_ensemble:
-                data_std_q = torch.zeros_like(data_std_q).to(device)
-
-            if self.version == '0':
-                data_qs = data_qs.min(0)[0]
-            elif self.version == '1':
-                data_qs = data_qs.max(0)[0]
-            elif self.version == '2':
-                data_qs = data_qs.mean(0)
-
-            # Q computed by actions from the VAE.
-            cloned_qs, cloned_std_q = self.critic.q_all(state, sampled_actions[:, 0, :], with_var=True)
-            cloned_qs = self.critic.q_all(state.unsqueeze(0).repeat(num_samples, 1, 1).view(num_samples * state.size(0), state.size(1)), sampled_actions.permute(1, 0, 2).contiguous().view(num_samples*sampled_actions.size(0), sampled_actions.size(2)))
-            cloned_qs = cloned_qs.view(self.num_qs, num_samples, sampled_actions.size(0), 1)
-            cloned_qs = cloned_qs.mean(1)
-            cloned_std_q = torch.std(cloned_qs, dim=0, keepdim=False, unbiased=False)
-
-            if not self.use_ensemble:
-                cloned_std_q = torch.zeros_like(cloned_std_q).to(device)
-                
-            if self.version == '0':
-                cloned_qs = cloned_qs.min(0)[0]
-            elif self.version == '1':
-                cloned_qs = cloned_qs.max(0)[0]
-            elif self.version == '2':
-                cloned_qs = cloned_qs.mean(0)
-
-            print("data_qs", data_qs)
-            if self.adv_choice == 0:
-                advantage = critic_qs - data_qs
-            elif self.adv_choice == 1:
-                advantage = critic_qs - cloned_qs
-
-            print("advantage", advantage)
-
-            logp_cloned = self.cloned_policy.actor.log_pis(state, actor_action)
-            logp_actor = self.actor.log_pis(state, actor_action)
-            ratio = torch.exp(logp_actor - logp_cloned)
-            clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
-            actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
-
-            std_loss = self._lambda*(np.sqrt((1 - self.delta_conf)/self.delta_conf)) * std_q.detach() 
-
-            print("logp_cloned", logp_cloned)
-            print("logp_actor", logp_actor)
-            print("clip_adv", clip_adv)
-            print("actor_loss", actor_loss)
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
-            # torch.nn.utils.clip_grad_norm(self.actor.parameters(), 10.0)
             self.actor_optimizer.step()
-
-            # -------------------------------------------------------------------------------------------
 
 
             # Update Target Networks 
@@ -585,21 +488,15 @@ class ProximalOffline(object):
 
             for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
                     target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
-
-            print("critic_weights", np.isnan(np.min(list(self.critic.parameters())[0].data.cpu().numpy())))
-            print("target_critic_weights", np.isnan(np.min(list(self.critic_target.parameters())[0].data.cpu().numpy())))
-            _ = input(" ")
-
-
-        # Do all logging here
+            
+        # DO ALL logging here
         logger.record_dict(create_stats_ordered_dict(
             'Q_target',
             target_Q.cpu().data.numpy(),
         ))
-
         logger.record_tabular('Actor Loss', actor_loss.cpu().data.numpy())
         logger.record_tabular('Critic Loss', critic_loss.cpu().data.numpy())
-        logger.record_tabular('Std Loss', std_loss.cpu().data.numpy().mean())
+        # logger.record_tabular('Std Loss', std_loss.cpu().data.numpy().mean())
         logger.record_dict(create_stats_ordered_dict(
             'Sampled Actions',
             sampled_actions.cpu().data.numpy()
@@ -610,26 +507,19 @@ class ProximalOffline(object):
         ))
         logger.record_dict(create_stats_ordered_dict(
             'Current_Q',
-            current_Qs.cpu().data.numpy()
+            current_Q1.cpu().data.numpy()
         ))
         logger.record_dict(create_stats_ordered_dict(
             'Action_Divergence',
             action_divergence.cpu().data.numpy()
         ))
-        logger.record_dict(create_stats_ordered_dict(
-            'Raw Action_Divergence',
-            raw_action_divergence.cpu().data.numpy()
-        ))
-        self.epoch = self.epoch + 1
 
 def weighted_mse_loss(inputs, target, weights):
     return torch.mean(weights * (inputs - target)**2)
 
 
 class BEAR(object):
-    def __init__(self, num_qs, state_dim, action_dim, max_action, delta_conf=0.1, use_bootstrap=True, version=0, lambda_=0.4,
-                 threshold=0.05, mode='auto', num_samples_match=10, mmd_sigma=10.0,
-                 lagrange_thresh=10.0, use_kl=False, use_ensemble=True, kernel_type='laplacian'):
+    def __init__(self, num_qs, state_dim, action_dim, max_action, delta_conf=0.1, use_bootstrap=True, version=0, lambda_=0.4, threshold=0.05, mode='auto', num_samples_match=10, mmd_sigma=10.0, lagrange_thresh=10.0, use_kl=False, use_ensemble=True, kernel_type='laplacian'):
         latent_dim = action_dim * 2
         self.actor = RegularActor(state_dim, action_dim, max_action).to(device)
         self.actor_target = RegularActor(state_dim, action_dim, max_action).to(device)
