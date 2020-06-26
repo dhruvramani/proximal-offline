@@ -493,7 +493,7 @@ class ProximalOffline(object):
 
                 print("actor_actions", actor_actions)
                 print("advantage", advantage)
-                logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
+                logp_cloned = self.cloned_policy.actor.log_pis(state, action)
                 print("logp_cloned", logp_cloned)
                 logp_actor = self.actor.log_pis(state, actor_actions)
                 print("logp_actor", logp_actor)
@@ -507,11 +507,9 @@ class ProximalOffline(object):
                 # Update through DPG
                 #actor_loss = -self.critic.q1(state, actor_actions).mean()
                 
-                print("clonef_gradients_1", self.cloned_policy.actor.grad.data)
                 self.actor_optimizer.zero_grad()
                 actor_loss.backward()
                 self.actor_optimizer.step()
-                print("clonef_gradients_2", self.cloned_policy.actor.grad.data)
                 # Update Target Networks 
                 for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
