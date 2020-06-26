@@ -472,14 +472,12 @@ class ProximalOffline(object):
 
                 sampled_actions = self.vae.decode(state)
                 actor_actions = self.actor(state)
+                action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
 
                 current_q1, current_q2 = self.critic_target(state, action)
                 actor_q1, actor_q2 = self.critic_target(state, actor_actions)
-                # actor_q1, actor_q2 = actor_q1.cpu().numpy(), actor_q2.cpu().numpy()
                 cloned_q1, cloned_q2 = self.critic_target(state, sampled_actions)
-                # cloned_q1, cloned_q2 = cloned_q1.cpu().numpy(), cloned_q2.cpu().numpy()
 
-                action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
                 # Pertubation Model / Action Training
 
                 advantage = 0.5
@@ -488,9 +486,13 @@ class ProximalOffline(object):
                 elif self.adv_choice == 1:
                      advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
+                print("advantage", advantage)
                 logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
+                print("logp_cloned", logp_cloned)
                 logp_actor = self.actor.log_pis(state, actor_actions)
+                print("logp_actor", logp_actor)
                 ratio = torch.exp(logp_actor - logp_cloned)
+                print("ratio", ratio)
                 clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
                 actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
 
