@@ -340,7 +340,8 @@ class ProximalOffline(object):
         
         self.cloned_policy = cloned_policy
         self.actor = RegularActor(state_dim, action_dim, max_action).to(device)
-        self.actor.load_state_dict(self.cloned_policy.actor.state_dict())
+        for param, target_param in zip(self.cloned_policy.actor.parameters(), self.actor.parameters()):
+            target_param.data.copy_(param.data)
 
         self.actor_target = RegularActor(state_dim, action_dim, max_action).to(device)
         self.actor_target.load_state_dict(self.actor.state_dict())
