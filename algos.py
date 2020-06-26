@@ -471,7 +471,7 @@ class ProximalOffline(object):
                 critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
 
                 self.critic_optimizer.zero_grad()
-                critic_loss.backward()
+                critic_loss.backward(retain_graph=True)
                 self.critic_optimizer.step()
 
                 action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
