@@ -89,12 +89,12 @@ class RegularActor(nn.Module):
         mean_a = self.mean(a)
         log_std_a = self.log_std(a)
         std_a = torch.exp(log_std_a)
-        normal_dist = td.Normal(loc=mean_a, scale=std_a, validate_args=False)
+        normal_dist = td.Normal(loc=mean_a, scale=std_a, validate_args=True)
         if raw_action is None:
             raw_action = atanh(action)
         else:
-            action = torch.tanh(raw_action + 1e-5)
-        log_normal = normal_dist.log_prob(raw_action + 1e-5)
+            action = torch.tanh(raw_action)
+        log_normal = normal_dist.log_prob(raw_action)
         log_pis = log_normal.sum(-1)
         log_pis = log_pis - (1.0 - action**2).clamp(min=1e-6).log().sum(-1)
         return log_pis
