@@ -446,12 +446,8 @@ class ProximalOffline(object):
                 vae_loss = recon_loss + 0.5 * KL_loss
 
                 self.vae_optimizer.zero_grad()
-                vae_loss.backward(retain_graph=True)
+                vae_loss.backward()
                 self.vae_optimizer.step()
-
-                sampled_actions = self.vae.decode(state)
-                actor_actions = self.actor(state)
-                action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
 
                 # Critic Training
                 with torch.no_grad():
@@ -473,9 +469,12 @@ class ProximalOffline(object):
                 critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
 
                 self.critic_optimizer.zero_grad()
-                critic_loss.backward(retain_graph=True)
+                critic_loss.backward()
                 self.critic_optimizer.step()
 
+                sampled_actions = self.vae.decode(state)
+                actor_actions = self.actor(state)
+                action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
                 # Pertubation Model / Action Training
 
                 advantage = 0.1
@@ -494,7 +493,7 @@ class ProximalOffline(object):
                 #actor_loss = -self.critic.q1(state, actor_actions).mean()
                     
                 self.actor_optimizer.zero_grad()
-                actor_loss.backward(retain_graph=True)
+                actor_loss.backward()
                 self.actor_optimizer.step()
                 # Update Target Networks 
                 for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
@@ -502,6 +501,8 @@ class ProximalOffline(object):
 
                 for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+
+                _ = input(" ")
             
         # DO ALL logging here
         logger.record_dict(create_stats_ordered_dict(
