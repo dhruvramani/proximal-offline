@@ -475,6 +475,7 @@ class ProximalOffline(object):
                 self.critic_optimizer.step()
 
                 sampled_actions = self.vae.decode(state)
+                target_actor_actions = self.actor_target(state)
                 actor_actions = self.actor(state)
                 action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
 
@@ -492,7 +493,7 @@ class ProximalOffline(object):
 
                 print("actor_actions", actor_actions)
                 print("advantage", advantage)
-                logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
+                logp_cloned = self.cloned_policy.actor.log_pis(state, target_actor_actions)
                 print("logp_cloned", logp_cloned)
                 logp_actor = self.actor.log_pis(state, actor_actions)
                 print("logp_actor", logp_actor)
@@ -506,9 +507,9 @@ class ProximalOffline(object):
                 # Update through DPG
                 #actor_loss = -self.critic.q1(state, actor_actions).mean()
                     
-                #self.actor_optimizer.zero_grad()
-                #actor_loss.backward()
-                #self.actor_optimizer.step()
+                self.actor_optimizer.zero_grad()
+                actor_loss.backward()
+                self.actor_optimizer.step()
                 # Update Target Networks 
                 for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
