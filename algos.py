@@ -455,6 +455,8 @@ class ProximalOffline(object):
                     state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
                     
                     target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
+                    actor_q1, actor_q2 = self.critic(state, actor_actions)
+                    cloned_q1, cloned_q2 = self.critic(state, sampled_actions)
 
                     # Soft Clipped Double Q-learning 
                     target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
@@ -474,9 +476,6 @@ class ProximalOffline(object):
                 sampled_actions = self.vae.decode(state)
                 actor_actions = self.actor(state)
                 action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
-
-                actor_q1, actor_q2 = self.critic(state, actor_actions)
-                cloned_q1, cloned_q2 = self.critic(state, sampled_actions)
 
                 if self.adv_choice == 0:
                     advantage = ((actor_q1 - current_Q1) + (actor_q2 - current_Q2)) / 2
