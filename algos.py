@@ -449,6 +449,10 @@ class ProximalOffline(object):
                 vae_loss.backward(retain_graph=True)
                 self.vae_optimizer.step()
 
+                sampled_actions = self.vae.decode(state)
+                actor_actions = self.actor(state)
+                action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
+                
                 # Critic Training
                 with torch.no_grad():
                     # Duplicate state 10 times
@@ -473,9 +477,6 @@ class ProximalOffline(object):
                 self.critic_optimizer.step()
 
                 # Pertubation Model / Action Training
-                sampled_actions = self.vae.decode(state)
-                actor_actions = self.actor(state)
-                action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
 
                 if self.adv_choice == 0:
                     advantage = ((actor_q1 - current_Q1) + (actor_q2 - current_Q2)) / 2
