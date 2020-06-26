@@ -448,17 +448,12 @@ class ProximalOffline(object):
                 self.vae_optimizer.zero_grad()
                 vae_loss.backward()
                 self.vae_optimizer.step()
-
-                sampled_actions = self.vae.decode(state)
-                actor_actions = self.actor(state)
                 # Critic Training
                 with torch.no_grad():
                     # Duplicate state 10 times
                     state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
                     
                     target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
-                    actor_q1, actor_q2 = self.critic_target(state, actor_actions)
-                    cloned_q1, cloned_q2 = self.critic_target(state, sampled_actions)
 
                     # Soft Clipped Double Q-learning 
                     target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
@@ -474,14 +469,19 @@ class ProximalOffline(object):
                 critic_loss.backward(retain_graph=True)
                 self.critic_optimizer.step()
 
+                sampled_actions = self.vae.decode(state)
+                actor_actions = self.actor(state)
+                actor_q1, actor_q2 = self.critic_target(state, actor_actions)
+                cloned_q1, cloned_q2 = self.critic_target(state, sampled_actions)
+
                 action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
                 # Pertubation Model / Action Training
 
                 advantage = 0.1
-                if self.adv_choice == 0:
-                    advantage = ((actor_q1 - current_Q1) + (actor_q2 - current_Q2)) / 2
-                elif self.adv_choice == 1:
-                    advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
+                # if self.adv_choice == 0:
+                #     advantage = ((actor_q1 - current_Q1) + (actor_q2 - current_Q2)) / 2
+                # elif self.adv_choice == 1:
+                #     advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
                 logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
                 logp_actor = self.actor.log_pis(state, actor_actions)
