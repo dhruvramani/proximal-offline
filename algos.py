@@ -463,28 +463,30 @@ class ProximalOffline(object):
                     target_Q = reward + done * discount * target_Q
 
                 current_Q1, current_Q2 = self.critic(state, action)
-                curr_q1, curr_q2 = current_Q1.cpu().numpy(), current_Q2.cpu().numpy()
+                # curr_q1, curr_q2 = current_Q1.cpu().numpy(), current_Q2.cpu().numpy()
                 critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
 
                 self.critic_optimizer.zero_grad()
-                critic_loss.backward(retain_graph=True)
+                critic_loss.backward()
                 self.critic_optimizer.step()
 
                 sampled_actions = self.vae.decode(state)
                 actor_actions = self.actor(state)
+
+                current_q1, current_q2 = self.critic_target(state, action)
                 actor_q1, actor_q2 = self.critic_target(state, actor_actions)
-                actor_q1, actor_q2 = actor_q1.cpu().numpy(), actor_q2.cpu().numpy()
+                # actor_q1, actor_q2 = actor_q1.cpu().numpy(), actor_q2.cpu().numpy()
                 cloned_q1, cloned_q2 = self.critic_target(state, sampled_actions)
-                cloned_q1, cloned_q2 = cloned_q1.cpu().numpy(), cloned_q2.cpu().numpy()
+                # cloned_q1, cloned_q2 = cloned_q1.cpu().numpy(), cloned_q2.cpu().numpy()
 
                 action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
                 # Pertubation Model / Action Training
 
                 advantage = 0.5
                 if self.adv_choice == 0:
-                     advantage = torch.FloatTensor(((actor_q1 - current_Q1) + (actor_q2 - current_Q2)) / 2)
+                     advantage = ((actor_q1 - current_q1) + (actor_q2 - current_q2)) / 2
                 elif self.adv_choice == 1:
-                     advantage = torch.FloatTensor(((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2)
+                     advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
                 logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
                 logp_actor = self.actor.log_pis(state, actor_actions)
