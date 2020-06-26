@@ -494,7 +494,9 @@ class ProximalOffline(object):
                 ratio = torch.exp(logp_actor - logp_cloned)
                 print("ratio", ratio)
                 clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
+                print("clip_adv", clip_adv)
                 actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
+                print("actor_loss", actor_loss)
 
                 # Update through DPG
                 #actor_loss = -self.critic.q1(state, actor_actions).mean()
