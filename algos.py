@@ -96,7 +96,7 @@ class RegularActor(nn.Module):
             action = torch.tanh(raw_action)
         log_normal = normal_dist.log_prob(raw_action)
         log_pis = log_normal.sum(-1)
-        log_pis = log_pis - (1.0 - action**2).clamp(min=1e-6).log().sum(-1)
+        #log_pis = log_pis - (1.0 - action**2).clamp(min=1e-6).log().sum(-1)
         return log_pis
 
 class Critic(nn.Module):
@@ -342,6 +342,9 @@ class ProximalOffline(object):
         self.actor = RegularActor(state_dim, action_dim, max_action).to(device)
         for param, target_param in zip(self.cloned_policy.actor.parameters(), self.actor.parameters()):
             target_param.data.copy_(param.data)
+
+        for params in self.cloned_policy.actor.parameters():
+            params.requires_grad = False
 
         self.actor_target = RegularActor(state_dim, action_dim, max_action).to(device)
         self.actor_target.load_state_dict(self.actor.state_dict())
