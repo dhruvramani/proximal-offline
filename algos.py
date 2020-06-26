@@ -493,7 +493,8 @@ class ProximalOffline(object):
 
                 print("actor_actions", actor_actions)
                 print("advantage", advantage)
-                logp_cloned = self.cloned_policy.actor.log_pis(state, target_actor_actions)
+                with torch.no_grad():
+                    logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
                 print("logp_cloned", logp_cloned)
                 logp_actor = self.actor.log_pis(state, actor_actions)
                 print("logp_actor", logp_actor)
