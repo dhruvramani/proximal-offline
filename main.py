@@ -137,6 +137,8 @@ if __name__ == "__main__":
     parser.add_argument('--clip_ratio', default=0.2, type=float)
     parser.add_argument('--cloned_timesteps', default=1e4, type=float)
     parser.add_argument('--cloned_eval_freq', default=1e3, type=float)
+    parser.add_argument('--train_pi_iters', default=80, type=int)
+    parser.add_argument('--train_v_iters', default=80, type=int)
     args = parser.parse_args()
 
     # Use any random seed, and not the user provided seed
@@ -260,7 +262,7 @@ if __name__ == "__main__":
         policy = algos.ProximalOffline(2, state_dim, action_dim, max_action, cloned_policy, delta_conf=0.1, use_bootstrap=False,
             version=args.version, lambda_=float(args.lamda), threshold=float(args.threshold), 
             num_samples_match=args.num_samples_match, use_ensemble=(False if args.use_ensemble_variance == "False" else True),
-            adv_choice=args.adv_choice, clip_ratio=args.clip_ratio)
+            adv_choice=args.adv_choice, clip_ratio=args.clip_ratio, train_pi_iters=args.train_pi_iters, train_v_iters=args.train_v_iters)
 
     
     evaluations = []

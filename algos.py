@@ -335,7 +335,7 @@ class ClonedPolicy(object):
 
 class ProximalOffline(object):
     def __init__(self, num_qs, state_dim, action_dim, max_action, cloned_policy, delta_conf=0.1, use_bootstrap=True, version=0, lambda_=0.4,
-                 threshold=0.05, num_samples_match=10, use_ensemble=True, adv_choice=0, clip_ratio=0.2):
+                 threshold=0.05, num_samples_match=10, use_ensemble=True, adv_choice=0, clip_ratio=0.2, train_pi_iters=80, train_v_iters=80):
         latent_dim = action_dim * 2
         
         self.cloned_policy = cloned_policy
@@ -371,6 +371,8 @@ class ProximalOffline(object):
         self.use_ensemble = use_ensemble
         self.adv_choice = adv_choice
         self.clip_ratio = clip_ratio
+        self.train_pi_iters = train_pi_iters
+        self.train_v_iters = train_v_iters
     
         self.epoch = 0
 
@@ -453,63 +455,65 @@ class ProximalOffline(object):
                 vae_loss.backward()
                 self.vae_optimizer.step()
                 # Critic Training
-                with torch.no_grad():
-                    # Duplicate state 10 times
-                    state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
+                for i in range(self.train_v_iters):
+                    with torch.no_grad():
+                        # Duplicate state 10 times
+                        state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
+                        
+                        target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
+
+                        # Soft Clipped Double Q-learning 
+                        target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
+                        target_Q = target_Q.view(batch_size, -1).max(1)[0].view(-1, 1)
+                        target_Q = reward + done * discount * target_Q
+
+                        target_Q = reward + done * discount * target_Q
+
+                    current_Q1, current_Q2 = self.critic(state, action)
+                    # curr_q1, curr_q2 = current_Q1.cpu().numpy(), current_Q2.cpu().numpy()
+                    critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+
+                    self.critic_optimizer.zero_grad()
+                    critic_loss.backward()
+                    self.critic_optimizer.step()
+
+                for i in range(self.train_pi_iters):
+                    sampled_actions = self.vae.decode(state)
+                    target_actor_actions = self.actor_target(state)
+                    actor_actions = self.actor(state)
+                    action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
+
+                    current_q1, current_q2 = self.critic_target(state, action)
+                    actor_q1, actor_q2 = self.critic_target(state, actor_actions)
+                    cloned_q1, cloned_q2 = self.critic_target(state, sampled_actions)
+
+                    # Pertubation Model / Action Training
+
+                    advantage = 0.5
+                    if self.adv_choice == 0:
+                         advantage = ((actor_q1 - current_q1) + (actor_q2 - current_q2)) / 2
+                    elif self.adv_choice == 1:
+                         advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
+
+                    print("actor_actions", actor_actions)
+                    print("advantage", advantage)
+                    logp_cloned = self.cloned_policy.actor.log_pis(state, target_actor_actions)
+                    print("logp_cloned", logp_cloned)
+                    logp_actor = self.actor.log_pis(state, actor_actions)
+                    print("logp_actor", logp_actor)
+                    ratio = torch.exp(logp_actor - logp_cloned)
+                    print("ratio", ratio)
+                    clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
+                    print("clip_adv", clip_adv)
+                    actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
+                    print("actor_loss", actor_loss)
+
+                    # Update through DPG
+                    #actor_loss = -self.critic.q1(state, actor_actions).mean()
                     
-                    target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
-
-                    # Soft Clipped Double Q-learning 
-                    target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
-                    target_Q = target_Q.view(batch_size, -1).max(1)[0].view(-1, 1)
-                    target_Q = reward + done * discount * target_Q
-
-                    target_Q = reward + done * discount * target_Q
-
-                current_Q1, current_Q2 = self.critic(state, action)
-                # curr_q1, curr_q2 = current_Q1.cpu().numpy(), current_Q2.cpu().numpy()
-                critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
-
-                self.critic_optimizer.zero_grad()
-                critic_loss.backward()
-                self.critic_optimizer.step()
-
-                sampled_actions = self.vae.decode(state)
-                target_actor_actions = self.actor_target(state)
-                actor_actions = self.actor(state)
-                action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
-
-                current_q1, current_q2 = self.critic_target(state, action)
-                actor_q1, actor_q2 = self.critic_target(state, actor_actions)
-                cloned_q1, cloned_q2 = self.critic_target(state, sampled_actions)
-
-                # Pertubation Model / Action Training
-
-                advantage = 0.5
-                if self.adv_choice == 0:
-                     advantage = ((actor_q1 - current_q1) + (actor_q2 - current_q2)) / 2
-                elif self.adv_choice == 1:
-                     advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
-
-                print("actor_actions", actor_actions)
-                print("advantage", advantage)
-                logp_cloned = self.cloned_policy.actor.log_pis(state, action)
-                print("logp_cloned", logp_cloned)
-                logp_actor = self.actor.log_pis(state, action)
-                print("logp_actor", logp_actor)
-                ratio = torch.exp(logp_actor - logp_cloned)
-                print("ratio", ratio)
-                clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
-                print("clip_adv", clip_adv)
-                actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
-                print("actor_loss", actor_loss)
-
-                # Update through DPG
-                #actor_loss = -self.critic.q1(state, actor_actions).mean()
-                
-                self.actor_optimizer.zero_grad()
-                actor_loss.backward()
-                self.actor_optimizer.step()
+                    self.actor_optimizer.zero_grad()
+                    actor_loss.backward()
+                    self.actor_optimizer.step()
                 # Update Target Networks 
                 for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
