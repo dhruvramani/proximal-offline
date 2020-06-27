@@ -455,14 +455,15 @@ class ProximalOffline(object):
                     # NOTE : @dhruvramani - Normalizing log probabs variable coz of underflow
                     # Source : https://stats.stackexchange.com/a/66621
                     logp_cloned = logp_cloned - torch.max(logp_cloned)
+                    print("logp_cloned", logp_cloned)
                     zeros = torch.zeros(tuple(logp_cloned.size())).to(device)
                     precision, size = torch.Tensor([1e-6]).to(device), torch.Tensor([logp_cloned.size()[-1]]).to(device)
                     p_cloned = torch.where(logp_cloned >= (torch.log(precision) - torch.log(size)), torch.exp(logp_cloned), zeros)
-                    print("logp_cloned", p_cloned)
+                    print("p_cloned", p_cloned)
                     logp_actor = self.actor.log_pis(state, actor_actions)
                     logp_actor = logp_actor - torch.max(logp_actor)
                     p_actor = torch.where(logp_actor >= (torch.log(precision) - torch.log(size)), torch.exp(logp_actor), zeros)
-                    print("logp_actor", p_actor)
+                    print("p_actor", p_actor)
                     ratio = p_actor / (p_cloned + 1e-7)
                     print("ratio", ratio)
                     clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
