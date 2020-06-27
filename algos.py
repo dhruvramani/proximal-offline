@@ -5,6 +5,8 @@ import torch.nn.functional as F
 import utils
 import torch.distributions as td
 
+# TODO : Learn VAE before and learn cloned policy minimizing KL b/w them
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from logger import logger
 from logger import create_stats_ordered_dict
@@ -375,54 +377,6 @@ class ProximalOffline(object):
         self.train_v_iters = train_v_iters
     
         self.epoch = 0
-
-    def mmd_loss_laplacian(self, samples1, samples2, sigma=0.2):
-        """MMD constraint with Laplacian kernel for support matching"""
-        # sigma is set to 10.0 for hopper, cheetah and 20 for walker/ant
-        diff_x_x = samples1.unsqueeze(2) - samples1.unsqueeze(1)  # B x N x N x d
-        diff_x_x = torch.mean((-(diff_x_x.abs()).sum(-1)/(2.0 * sigma)).exp(), dim=(1,2))
-
-        diff_x_y = samples1.unsqueeze(2) - samples2.unsqueeze(1)
-        diff_x_y = torch.mean((-(diff_x_y.abs()).sum(-1)/(2.0 * sigma)).exp(), dim=(1, 2))
-
-        diff_y_y = samples2.unsqueeze(2) - samples2.unsqueeze(1)  # B x N x N x d
-        diff_y_y = torch.mean((-(diff_y_y.abs()).sum(-1)/(2.0 * sigma)).exp(), dim=(1,2))
-
-        overall_loss = (diff_x_x + diff_y_y - 2.0 * diff_x_y + 1e-6).sqrt()
-        return overall_loss
-    
-    def mmd_loss_gaussian(self, samples1, samples2, sigma=0.2):
-        """MMD constraint with Gaussian Kernel support matching"""
-        # sigma is set to 10.0 for hopper, cheetah and 20 for walker/ant
-        diff_x_x = samples1.unsqueeze(2) - samples1.unsqueeze(1)  # B x N x N x d
-        diff_x_x = torch.mean((-(diff_x_x.pow(2)).sum(-1)/(2.0 * sigma)).exp(), dim=(1,2))
-
-        diff_x_y = samples1.unsqueeze(2) - samples2.unsqueeze(1)
-        diff_x_y = torch.mean((-(diff_x_y.pow(2)).sum(-1)/(2.0 * sigma)).exp(), dim=(1, 2))
-
-        diff_y_y = samples2.unsqueeze(2) - samples2.unsqueeze(1)  # B x N x N x d
-        diff_y_y = torch.mean((-(diff_y_y.pow(2)).sum(-1)/(2.0 * sigma)).exp(), dim=(1,2))
-
-        overall_loss = (diff_x_x + diff_y_y - 2.0 * diff_x_y + 1e-6).sqrt()
-        return overall_loss
-
-    def kl_loss(self, samples1, state, sigma=0.2):
-        """We just do likelihood, we make sure that the policy is close to the
-           data in terms of the KL."""
-        state_rep = state.unsqueeze(1).repeat(1, samples1.size(1), 1).view(-1, state.size(-1))
-        samples1_reshape = samples1.view(-1, samples1.size(-1))
-        samples1_log_pis = self.actor.log_pis(state=state_rep, raw_action=samples1_reshape)
-        samples1_log_prob = samples1_log_pis.view(state.size(0), samples1.size(1))
-        return (-samples1_log_prob).mean(1)
-    
-    def entropy_loss(self, samples1, state, sigma=0.2):
-        state_rep = state.unsqueeze(1).repeat(1, samples1.size(1), 1).view(-1, state.size(-1))
-        samples1_reshape = samples1.view(-1, samples1.size(-1))
-        samples1_log_pis = self.actor.log_pis(state=state_rep, raw_action=samples1_reshape)
-        samples1_log_prob = samples1_log_pis.view(state.size(0), samples1.size(1))
-        # print (samples1_log_prob.min(), samples1_log_prob.max())
-        samples1_prob = samples1_log_prob.clamp(min=-5, max=4).exp()
-        return (samples1_prob).mean(1)
     
     def select_action(self, state):      
         """When running the actor, we just select action based on the max of the Q-function computed over
@@ -497,7 +451,7 @@ class ProximalOffline(object):
 
                     print("actor_actions", actor_actions)
                     print("advantage", advantage)
-                    logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
+                    logp_cloned = self.actor_target.log_pis(state, actor_actions)
                     print("logp_cloned", logp_cloned)
                     logp_actor = self.actor.log_pis(state, actor_actions)
                     print("logp_actor", logp_actor)
