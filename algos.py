@@ -456,11 +456,12 @@ class ProximalOffline(object):
                     # Source : https://stats.stackexchange.com/a/66621
                     logp_cloned = logp_cloned - torch.max(logp_cloned)
                     zeros = torch.zeros(tuple(logp_cloned.size()))
-                    p_cloned = torch.where(logp_cloned >= (torch.log(1e-6) - torch.log(logp_cloned.size()[-1])), torch.exp(logp_cloned), zeros)
+                    precision, size = torch.Tensor([1e-6]), torch.Tensor([logp_cloned.size()[-1]])
+                    p_cloned = torch.where(logp_cloned >= (torch.log(precision) - torch.log(size)), torch.exp(logp_cloned), zeros)
                     print("logp_cloned", p_cloned)
                     logp_actor = self.actor.log_pis(state, actor_actions)
                     logp_actor = logp_actor - torch.max(logp_actor)
-                    p_actor = torch.where(logp_actor >= (torch.log(1e-6) - torch.log(logp_actor.size()[-1])), torch.exp(logp_actor), zeros)
+                    p_actor = torch.where(logp_actor >= (torch.log(precision) - torch.log(size)), torch.exp(logp_actor), zeros)
                     print("logp_actor", p_actor)
                     ratio = p_actor / p_cloned
                     print("ratio", ratio)
