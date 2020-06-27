@@ -451,11 +451,17 @@ class ProximalOffline(object):
 
                     print("actor_actions", actor_actions)
                     print("advantage", advantage)
-                    logp_cloned = self.actor_target.log_pis(state, actor_actions)
-                    print("logp_cloned", logp_cloned)
+                    logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
+                    # NOTE : @dhruvramani - Normalizing log probabs variable coz of underflow
+                    # Source : https://stats.stackexchange.com/a/66621
+                    logp_cloned = logp_cloned - torch.max(logp_cloned)
+                    p_cloned = torch.where(logp_cloned >= (torch.log(1e-6) - torch.log(logp_cloned.size()[-1])), torch.exp(logp_cloned), 0)
+                    print("logp_cloned", p_cloned)
                     logp_actor = self.actor.log_pis(state, actor_actions)
-                    print("logp_actor", logp_actor)
-                    ratio = torch.exp(logp_actor) / torch.exp(logp_cloned)
+                    logp_actor = logp_actor - torch.max(logp_actor)
+                    p_actor = torch.where(logp_actor >= (torch.log(1e-6) - torch.log(logp_actor.size()[-1])), torch.exp(logp_actor), 0)
+                    print("logp_actor", p_actor)
+                    ratio = p_actor / p_cloned
                     print("ratio", ratio)
                     clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
                     print("clip_adv", clip_adv)
