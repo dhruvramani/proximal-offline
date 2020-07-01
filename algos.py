@@ -70,7 +70,7 @@ class RegularActor(nn.Module):
         log_std_a = self.log_std.repeat(state.size()[0], 1)
         
         std_a = torch.exp(log_std_a)
-        z = mean_a + std_a * torch.DoubleTensor(np.random.normal(0, 1, size=(std_a.size()))).to(device) 
+        z = mean_a + std_a * torch.FloatTensor(np.random.normal(0, 1, size=(std_a.size()))).to(device) 
         return self.max_action * torch.tanh(z)
 
     def sample_multiple(self, state, num_sample=10):
@@ -82,7 +82,7 @@ class RegularActor(nn.Module):
         std_a = torch.exp(log_std_a)
         # This trick stabilizes learning (clipping gaussian to a smaller range)
         z = mean_a.unsqueeze(1) +\
-             std_a.unsqueeze(1) * torch.DoubleTensor(np.random.normal(0, 1, size=(std_a.size(0), num_sample, std_a.size(1)))).to(device).clamp(-0.5, 0.5)
+             std_a.unsqueeze(1) * torch.FloatTensor(np.random.normal(0, 1, size=(std_a.size(0), num_sample, std_a.size(1)))).to(device).clamp(-0.5, 0.5)
         return self.max_action * torch.tanh(z), z 
 
     def log_pis(self, state, action=None, raw_action=None):
@@ -238,7 +238,7 @@ class VAE(nn.Module):
         # Clamped for numerical stability 
         log_std = self.log_std(z).clamp(-4, 15)
         std = torch.exp(log_std)
-        z = mean + std * torch.DoubleTensor(np.random.normal(0, 1, size=(std.size()))).to(device) 
+        z = mean + std * torch.FloatTensor(np.random.normal(0, 1, size=(std.size()))).to(device) 
         
         u = self.decode(state, z)
 
@@ -246,14 +246,14 @@ class VAE(nn.Module):
     
     def decode_softplus(self, state, z=None):
         if z is None:
-            z = torch.DoubleTensor(np.random.normal(0, 1, size=(state.size(0), self.latent_dim))).to(device).clamp(-0.5, 0.5)
+            z = torch.FloatTensor(np.random.normal(0, 1, size=(state.size(0), self.latent_dim))).to(device).clamp(-0.5, 0.5)
         
         a = F.relu(self.d1(torch.cat([state, z], 1)))
         a = F.relu(self.d2(a))
         
     def decode(self, state, z=None):
         if z is None:
-                z = torch.DoubleTensor(np.random.normal(0, 1, size=(state.size(0), self.latent_dim))).to(device).clamp(-0.5, 0.5)
+                z = torch.FloatTensor(np.random.normal(0, 1, size=(state.size(0), self.latent_dim))).to(device).clamp(-0.5, 0.5)
 
         a = F.relu(self.d1(torch.cat([state, z], 1)))
         a = F.relu(self.d2(a))
@@ -261,7 +261,7 @@ class VAE(nn.Module):
     
     def decode_bc(self, state, z=None):
         if z is None:
-                z = torch.DoubleTensor(np.random.normal(0, 1, size=(state.size(0), self.latent_dim))).to(device)
+                z = torch.FloatTensor(np.random.normal(0, 1, size=(state.size(0), self.latent_dim))).to(device)
 
         a = F.relu(self.d1(torch.cat([state, z], 1)))
         a = F.relu(self.d2(a))
@@ -269,7 +269,7 @@ class VAE(nn.Module):
 
     def decode_bc_test(self, state, z=None):
         if z is None:
-                z = torch.DoubleTensor(np.random.normal(0, 1, size=(state.size(0), self.latent_dim))).to(device).clamp(-0.25, 0.25)
+                z = torch.FloatTensor(np.random.normal(0, 1, size=(state.size(0), self.latent_dim))).to(device).clamp(-0.25, 0.25)
 
         a = F.relu(self.d1(torch.cat([state, z], 1)))
         a = F.relu(self.d2(a))
@@ -278,7 +278,7 @@ class VAE(nn.Module):
     def decode_multiple(self, state, z=None, num_decode=10):
         """Decode 10 samples atleast"""
         if z is None:
-            z = torch.DoubleTensor(np.random.normal(0, 1, size=(state.size(0), num_decode, self.latent_dim))).to(device).clamp(-0.5, 0.5)
+            z = torch.FloatTensor(np.random.normal(0, 1, size=(state.size(0), num_decode, self.latent_dim))).to(device).clamp(-0.5, 0.5)
 
         a = F.relu(self.d1(torch.cat([state.unsqueeze(0).repeat(num_decode, 1, 1).permute(1, 0, 2), z], 2)))
         a = F.relu(self.d2(a))
@@ -295,18 +295,18 @@ class ClonedPolicy(object):
         self.vae_optimizer = torch.optim.Adam(self.vae.parameters()) 
 
     def select_action(self, state):
-        state = torch.DoubleTensor(state.reshape(1, -1)).to(device)
+        state = torch.FloatTensor(state.reshape(1, -1)).to(device)
         return self.actor(state).cpu().data.numpy().flatten()
 
     def train(self, replay_buffer, iterations, batch_size=100, num_samples_match=10):
         for it in range(iterations):
             state_np, next_state_np, action, reward, done, mask = replay_buffer.sample(batch_size)
-            state           = torch.DoubleTensor(state_np).to(device)
-            action          = torch.DoubleTensor(action).to(device)
-            next_state      = torch.DoubleTensor(next_state_np).to(device)
-            reward          = torch.DoubleTensor(reward).to(device)
-            done            = torch.DoubleTensor(1 - done).to(device)
-            mask            = torch.DoubleTensor(mask).to(device) 
+            state           = torch.FloatTensor(state_np).to(device)
+            action          = torch.FloatTensor(action).to(device)
+            next_state      = torch.FloatTensor(next_state_np).to(device)
+            reward          = torch.FloatTensor(reward).to(device)
+            done            = torch.FloatTensor(1 - done).to(device)
+            mask            = torch.FloatTensor(mask).to(device) 
 
             pred_action = self.actor(state) #  mean, std =
             recon_loss = F.mse_loss(pred_action, action)
@@ -383,7 +383,7 @@ class ProximalOffline(object):
         """When running the actor, we just select action based on the max of the Q-function computed over
             samples from the policy -- which biases things to support."""
         with torch.no_grad():
-            state = torch.DoubleTensor(state.reshape(1, -1)).repeat(10, 1).to(device)
+            state = torch.FloatTensor(state.reshape(1, -1)).repeat(10, 1).to(device)
             action = self.actor(state)
             q1 = self.critic.q1(state, action)
             ind = q1.max(0)[1]
@@ -392,11 +392,11 @@ class ProximalOffline(object):
     def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005):
         for it in range(iterations):
             state_np, next_state_np, action, reward, done, mask = replay_buffer.sample(batch_size)
-            state           = torch.DoubleTensor(state_np).to(device)
-            action          = torch.DoubleTensor(action).to(device)
-            next_state      = torch.DoubleTensor(next_state_np).to(device)
-            reward          = torch.DoubleTensor(reward).to(device)
-            done            = torch.DoubleTensor(1 - done).to(device)
+            state           = torch.FloatTensor(state_np).to(device)
+            action          = torch.FloatTensor(action).to(device)
+            next_state      = torch.FloatTensor(next_state_np).to(device)
+            reward          = torch.FloatTensor(reward).to(device)
+            done            = torch.FloatTensor(1 - done).to(device)
 
             with torch.autograd.set_detect_anomaly(True):
 
@@ -413,7 +413,7 @@ class ProximalOffline(object):
                 for i in range(self.train_v_iters):
                     with torch.no_grad():
                         # Duplicate state 10 times
-                        state_rep = torch.DoubleTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
+                        state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
                         target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
 
                         # Soft Clipped Double Q-learning 
@@ -448,11 +448,11 @@ class ProximalOffline(object):
                     elif self.adv_choice == 1:
                          advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
-                    logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions).type(torch.DoubleTensor)
+                    logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
                     print(logp_cloned)
-                    logp_actor = self.actor.log_pis(state, actor_actions).type(torch.DoubleTensor)
+                    logp_actor = self.actor.log_pis(state, actor_actions) + torch.Tensor([50])
                     print(logp_actor)
-                    ratio = torch.exp(logp_actor - logp_cloned).type(torch.DoubleTensor)
+                    ratio = torch.exp(logp_actor - logp_cloned) / torch.exp(torch.Tensor([50]))
                     print(ratio)
                     clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
                     actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
@@ -594,7 +594,7 @@ class BEAR(object):
         """When running the actor, we just select action based on the max of the Q-function computed over
             samples from the policy -- which biases things to support."""
         with torch.no_grad():
-            state = torch.DoubleTensor(state.reshape(1, -1)).repeat(10, 1).to(device)
+            state = torch.FloatTensor(state.reshape(1, -1)).repeat(10, 1).to(device)
             action = self.actor(state)
             q1 = self.critic.q1(state, action)
             ind = q1.max(0)[1]
@@ -603,12 +603,12 @@ class BEAR(object):
     def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005):
         for it in range(iterations):
             state_np, next_state_np, action, reward, done, mask = replay_buffer.sample(batch_size)
-            state           = torch.DoubleTensor(state_np).to(device)
-            action          = torch.DoubleTensor(action).to(device)
-            next_state      = torch.DoubleTensor(next_state_np).to(device)
-            reward          = torch.DoubleTensor(reward).to(device)
-            done            = torch.DoubleTensor(1 - done).to(device)
-            mask            = torch.DoubleTensor(mask).to(device)
+            state           = torch.FloatTensor(state_np).to(device)
+            action          = torch.FloatTensor(action).to(device)
+            next_state      = torch.FloatTensor(next_state_np).to(device)
+            reward          = torch.FloatTensor(reward).to(device)
+            done            = torch.FloatTensor(1 - done).to(device)
+            mask            = torch.FloatTensor(mask).to(device)
             
             # Train the Behaviour cloning policy to be able to take more than 1 sample for MMD
             recon, mean, std = self.vae(state, action)
@@ -623,7 +623,7 @@ class BEAR(object):
             # Critic Training: In this step, we explicitly compute the actions 
             with torch.no_grad():
                 # Duplicate state 10 times (10 is a hyperparameter chosen by BCQ)
-                state_rep = torch.DoubleTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
+                state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
                 
                 # Compute value of perturbed actions sampled from the VAE
                 target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
@@ -862,7 +862,7 @@ class BEAR_IS(object):
     def select_action(self, state):      
         # TODO (aviralkumar): Check this out once!  
         with torch.no_grad():
-            state = torch.DoubleTensor(state.reshape(1, -1)).repeat(10, 1).to(device)
+            state = torch.FloatTensor(state.reshape(1, -1)).repeat(10, 1).to(device)
             action = self.actor(state)
             q1 = self.critic.q1(state, action)
             ind = q1.max(0)[1]
@@ -872,14 +872,14 @@ class BEAR_IS(object):
         for it in range(iterations):
             # Sample replay buffer / batch
             state_np, next_state_np, action, reward, done, mask, data_mean, data_cov = replay_buffer.sample(batch_size, with_data_policy=True)
-            state           = torch.DoubleTensor(state_np).to(device)
-            action          = torch.DoubleTensor(action).to(device)
-            next_state      = torch.DoubleTensor(next_state_np).to(device)
-            reward          = torch.DoubleTensor(reward).to(device)
-            done            = torch.DoubleTensor(1 - done).to(device)
-            mask            = torch.DoubleTensor(mask).to(device)
-            data_mean       = torch.DoubleTensor(data_mean).to(device)
-            data_cov        = torch.DoubleTensor(data_cov).to(device)
+            state           = torch.FloatTensor(state_np).to(device)
+            action          = torch.FloatTensor(action).to(device)
+            next_state      = torch.FloatTensor(next_state_np).to(device)
+            reward          = torch.FloatTensor(reward).to(device)
+            done            = torch.FloatTensor(1 - done).to(device)
+            mask            = torch.FloatTensor(mask).to(device)
+            data_mean       = torch.FloatTensor(data_mean).to(device)
+            data_cov        = torch.FloatTensor(data_cov).to(device)
 
             # Variational Auto-Encoder Training: fit the data collection policy
             recon, mean, std = self.vae(state, action)
@@ -902,7 +902,7 @@ class BEAR_IS(object):
             # Critic Training: In this step, we explicitly compute the actions 
             with torch.no_grad():
                 # Duplicate state 10 times
-                state_rep = torch.DoubleTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
+                state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
                 
                 # Compute value of perturbed actions sampled from the VAE
                 target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
@@ -1088,7 +1088,7 @@ class BCQ(object):
         if self.use_cloning:
             return self.select_action_cloning(state)       
         with torch.no_grad():
-                state = torch.DoubleTensor(state.reshape(1, -1)).repeat(10, 1).to(device)
+                state = torch.FloatTensor(state.reshape(1, -1)).repeat(10, 1).to(device)
                 action = self.actor(state, self.vae.decode(state))
                 q1 = self.critic.q1(state, action)
                 ind = q1.max(0)[1]
@@ -1096,7 +1096,7 @@ class BCQ(object):
 
     def select_action_cloning(self, state):
         with torch.no_grad():
-            state = torch.DoubleTensor(state.reshape(1, -1)).to(device)
+            state = torch.FloatTensor(state.reshape(1, -1)).to(device)
             action = self.vae.decode_bc_test(state)
         return action[0].cpu().data.numpy().flatten()
 
@@ -1105,11 +1105,11 @@ class BCQ(object):
             # print ('Iteration : ', it)
             # Sample replay buffer / batch
             state_np, next_state_np, action, reward, done, mask = replay_buffer.sample(batch_size)
-            state           = torch.DoubleTensor(state_np).to(device)
-            action          = torch.DoubleTensor(action).to(device)
-            next_state      = torch.DoubleTensor(next_state_np).to(device)
-            reward          = torch.DoubleTensor(reward).to(device)
-            done            = torch.DoubleTensor(1 - done).to(device)
+            state           = torch.FloatTensor(state_np).to(device)
+            action          = torch.FloatTensor(action).to(device)
+            next_state      = torch.FloatTensor(next_state_np).to(device)
+            reward          = torch.FloatTensor(reward).to(device)
+            done            = torch.FloatTensor(1 - done).to(device)
 
 
             # Variational Auto-Encoder Training
@@ -1125,7 +1125,7 @@ class BCQ(object):
             # Critic Training
             with torch.no_grad():
                 # Duplicate state 10 times
-                state_rep = torch.DoubleTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
+                state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
                 
                 # Compute value of perturbed actions sampled from the VAE
                 if self.use_cloning:
@@ -1218,7 +1218,7 @@ class DQfD(object):
         self.margin_threshold = margin_threshold
 
     def select_action(self, state):
-        state = torch.DoubleTensor(state.reshape(1, -1)).to(device)
+        state = torch.FloatTensor(state.reshape(1, -1)).to(device)
         return self.actor(state).cpu().data.numpy().flatten()
     
     def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005):
@@ -1227,11 +1227,11 @@ class DQfD(object):
 
         for it in range(iterations):
             state_np, next_state_np, action_np, reward, done, mask = replay_buffer.sample(batch_size)
-            state           = torch.DoubleTensor(state_np).to(device)
-            action          = torch.DoubleTensor(action_np).to(device)
-            next_state      = torch.DoubleTensor(next_state_np).to(device)
-            reward          = torch.DoubleTensor(reward).to(device)
-            done            = torch.DoubleTensor(1 - done).to(device)
+            state           = torch.FloatTensor(state_np).to(device)
+            action          = torch.FloatTensor(action_np).to(device)
+            next_state      = torch.FloatTensor(next_state_np).to(device)
+            reward          = torch.FloatTensor(reward).to(device)
+            done            = torch.FloatTensor(1 - done).to(device)
 
             # Variational Auto-Encoder Training: fit the data collection policy
             recon, mean, std = self.vae(state, action)
@@ -1244,7 +1244,7 @@ class DQfD(object):
             vae_loss.backward()
             self.vae_optimizer.step()
 
-            noise = torch.DoubleTensor(action_np).data.normal_(0, policy_noise).to(device)
+            noise = torch.FloatTensor(action_np).data.normal_(0, policy_noise).to(device)
             noise = noise.clamp(-noise_clip, noise_clip)
             next_action = (self.actor_target(next_state) + noise).clamp(-self.max_action, self.max_action)
 
@@ -1357,17 +1357,17 @@ class KLControl(object):
             self.kl_div_thresh = temperature
 
     def select_action(self, state):
-        state = torch.DoubleTensor(state.reshape(1, -1)).to(device)
+        state = torch.FloatTensor(state.reshape(1, -1)).to(device)
         return self.actor(state).cpu().data.numpy().flatten()
 
     def train(self, replay_buffer, iterations, batch_size=100, discount=0.98, tau=0.005):
         for it in range(iterations):
             state_np, next_state_np, action_np, reward, done, mask = replay_buffer.sample(batch_size)
-            state           = torch.DoubleTensor(state_np).to(device)
-            action          = torch.DoubleTensor(action_np).to(device)
-            next_state      = torch.DoubleTensor(next_state_np).to(device)
-            reward          = torch.DoubleTensor(reward).to(device)
-            done            = torch.DoubleTensor(1 - done).to(device)
+            state           = torch.FloatTensor(state_np).to(device)
+            action          = torch.FloatTensor(action_np).to(device)
+            next_state      = torch.FloatTensor(next_state_np).to(device)
+            reward          = torch.FloatTensor(reward).to(device)
+            done            = torch.FloatTensor(1 - done).to(device)
 
             # Variational Auto-Encoder Training: fit the data collection policy
             # recon, mean, std = self.vae(state, action)
