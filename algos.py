@@ -449,8 +449,11 @@ class ProximalOffline(object):
                          advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
                     logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
+                    print(logp_cloned)
                     logp_actor = self.actor.log_pis(state, actor_actions)
+                    print(logp_actor)
                     ratio = torch.exp(logp_actor - logp_cloned)
+                    print(ratio)
                     clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
                     actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
 
@@ -460,6 +463,7 @@ class ProximalOffline(object):
                     self.actor_optimizer.zero_grad()
                     actor_loss.backward()
                     self.actor_optimizer.step()
+                    _ = input("")
                 # Update Target Networks 
                 for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
