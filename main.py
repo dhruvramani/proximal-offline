@@ -10,6 +10,7 @@ import algos
 import TD3
 from logger import logger, setup_logger
 from logger import create_stats_ordered_dict
+from ppo import cloned_ac, ppo
 #import point_mass
 
 #import d4rl
@@ -120,7 +121,7 @@ if __name__ == "__main__":
     parser.add_argument("--lamda", default=0.5, type=float)                   # Unused parameter -- please ignore 
     parser.add_argument("--threshold", default=0.05, type=float)              # Unused parameter -- please ignore
     parser.add_argument('--use_bootstrap', default=False, type=bool)          # Whether to use bootstrapped ensembles or plain ensembles
-    parser.add_argument('--algo_name', default="ProximalOffline", type=str)              # Which algo to run (see the options below in the main function)
+    parser.add_argument('--algo_name', default="PPO", type=str)              # Which algo to run (see the options below in the main function)
     parser.add_argument('--mode', default='hardcoded', type=str)              # Whether to do automatic lagrange dual descent or manually tune coefficient of the MMD loss (prefered "auto")
     parser.add_argument('--num_samples_match', default=10, type=int)          # number of samples to do matching in MMD
     parser.add_argument('--mmd_sigma', default=20.0, type=float)              # The bandwidth of the MMD kernel parameter
@@ -199,6 +200,8 @@ if __name__ == "__main__":
             # # logger.record_tabular('MedianReturn', median_ret)
             # logger.dump_tabular()
             # print("Iter done")
+    elif algo_name == 'PPO':
+        cloned_policy = cloned_ac(state_dim, action_dim, max_action, replay_buffer, steps_per_epoch=1)
 
 
     variant = dict(
@@ -263,27 +266,30 @@ if __name__ == "__main__":
             version=args.version, lambda_=float(args.lamda), threshold=float(args.threshold), 
             num_samples_match=args.num_samples_match, use_ensemble=(False if args.use_ensemble_variance == "False" else True),
             adv_choice=args.adv_choice, clip_ratio=args.clip_ratio, train_pi_iters=args.train_pi_iters, train_v_iters=args.train_v_iters)
+    elif algo_name == 'PPO':
+        policy = ppo(state_dim, action_dim, max_action, cloned_policy, replay_buffer)
 
     
-    evaluations = []
+    if algo_name != 'PPO':
+        evaluations = []
 
-    episode_num = 0
-    done = True 
+        episode_num = 0
+        done = True 
 
-    training_iters = 0
-    while training_iters < args.max_timesteps: 
-        pol_vals = policy.train(replay_buffer, iterations=int(args.eval_freq))
+        training_iters = 0
+        while training_iters < args.max_timesteps: 
+            pol_vals = policy.train(replay_buffer, iterations=int(args.eval_freq))
 
-        # NOTE : @dhruvramani - commeneted this for colabs
-        # ret_eval, var_ret, median_ret = evaluate_policy(policy)
-        # evaluations.append(ret_eval)
-        # np.save("./results/" + file_name, evaluations)
+            # NOTE : @dhruvramani - commeneted this for colabs
+            # ret_eval, var_ret, median_ret = evaluate_policy(policy)
+            # evaluations.append(ret_eval)
+            # np.save("./results/" + file_name, evaluations)
 
-        training_iters += args.eval_freq
-        print ("Training iterations: " + str(training_iters))
-        logger.record_tabular('Training Epochs', int(training_iters // int(args.eval_freq)))
-        # logger.record_tabular('AverageReturn', ret_eval)
-        # logger.record_tabular('VarianceReturn', var_ret)
-        # logger.record_tabular('MedianReturn', median_ret)
-        logger.dump_tabular()
-        print("Iter done")
+            training_iters += args.eval_freq
+            print ("Training iterations: " + str(training_iters))
+            logger.record_tabular('Training Epochs', int(training_iters // int(args.eval_freq)))
+            # logger.record_tabular('AverageReturn', ret_eval)
+            # logger.record_tabular('VarianceReturn', var_ret)
+            # logger.record_tabular('MedianReturn', median_ret)
+            logger.dump_tabular()
+            print("Iter done")
