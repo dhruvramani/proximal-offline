@@ -59,7 +59,7 @@ class RegularActor(nn.Module):
         self.l1 = nn.Linear(state_dim, 400)
         self.l2 = nn.Linear(400, 300)
         self.mean = nn.Linear(300, action_dim)
-        log_std = -0.5 * np.ones(action_dim), dtype=np.float32)
+        log_std = -0.5 * np.ones(action_dim, dtype=np.float32)
         self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
         print(self.log_std.size())
         self.max_action = max_action
