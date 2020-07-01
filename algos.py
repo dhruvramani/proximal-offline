@@ -99,7 +99,7 @@ class RegularActor(nn.Module):
             action = torch.tanh(raw_action)
         log_normal = normal_dist.log_prob(raw_action)
         log_pis = log_normal.sum(-1)
-        log_pis = log_pis - (1.0 - action**2).clamp(min=1e-6).log().sum(-1)
+        # log_pis = log_pis - (1.0 - action**2).clamp(min=1e-6).log().sum(-1)
         return log_pis
 
 class Critic(nn.Module):
@@ -449,11 +449,19 @@ class ProximalOffline(object):
                          advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
                     logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
-                    print(logp_cloned)
-                    logp_actor = self.actor.log_pis(state, actor_actions) #+ torch.FloatTensor([50]).to(device)
-                    print(logp_actor)
-                    ratio = torch.exp(logp_actor - logp_cloned) #/ torch.exp(torch.FloatTensor([50]).to(device))
-                    print(ratio)
+                    # NOTE : @dhruvramani - Normalizing log probabs variable coz of underflow
+                    # Source : https://stats.stackexchange.com/a/66621
+                    ogp_cloned = logp_cloned - torch.max(logp_cloned)
+                    #print("logp_cloned", logp_cloned)
+                    zeros = torch.zeros(tuple(logp_cloned.size())).to(device)
+                    precision, size = torch.Tensor([1e-6]).to(device), torch.Tensor([logp_cloned.size()[-1]]).to(device)
+                    p_cloned = torch.where(logp_cloned >= (torch.log(precision) - torch.log(size)), torch.exp(logp_cloned), zeros)
+                    # print("p_cloned", p_cloned)
+                    logp_actor = self.actor.log_pis(state, actor_actions) 
+                    logp_actor = logp_actor - torch.max(logp_actor)
+                    p_actor = torch.where(logp_actor >= (torch.log(precision) - torch.log(size)), torch.exp(logp_actor), zeros)
+                    # print("p_actor", p_actor)
+                    ratio = p_actor / (p_cloned + 1e-6) #torch.exp(logp_actor - logp_cloned) 
                     clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
                     actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
 
