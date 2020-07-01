@@ -451,7 +451,7 @@ class ProximalOffline(object):
                     logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
                     # NOTE : @dhruvramani - Normalizing log probabs variable coz of underflow
                     # Source : https://stats.stackexchange.com/a/66621
-                    ogp_cloned = logp_cloned - torch.max(logp_cloned)
+                    logp_cloned = logp_cloned - torch.max(logp_cloned)
                     #print("logp_cloned", logp_cloned)
                     zeros = torch.zeros(tuple(logp_cloned.size())).to(device)
                     precision, size = torch.Tensor([1e-6]).to(device), torch.Tensor([logp_cloned.size()[-1]]).to(device)
