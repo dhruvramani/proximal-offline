@@ -61,7 +61,6 @@ class RegularActor(nn.Module):
         self.mean = nn.Linear(300, action_dim)
         log_std = -0.5 * np.ones(action_dim, dtype=np.float32)
         self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
-        print(self.log_std.size())
         self.max_action = max_action
     
     def forward(self, state):
@@ -415,7 +414,6 @@ class ProximalOffline(object):
                     with torch.no_grad():
                         # Duplicate state 10 times
                         state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
-                        
                         target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
 
                         # Soft Clipped Double Q-learning 
@@ -426,7 +424,6 @@ class ProximalOffline(object):
                         target_Q = reward + done * discount * target_Q
 
                     current_Q1, current_Q2 = self.critic(state, action)
-                    # curr_q1, curr_q2 = current_Q1.cpu().numpy(), current_Q2.cpu().numpy()
                     critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
 
                     self.critic_optimizer.zero_grad()
@@ -435,7 +432,7 @@ class ProximalOffline(object):
 
                 for i in range(self.train_pi_iters):
                     sampled_actions = self.vae.decode(state)
-                    target_actor_actions = self.actor_target(state)
+                    #target_actor_actions = self.actor_target(state)
                     actor_actions = self.actor(state)
                     action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
 
@@ -451,27 +448,11 @@ class ProximalOffline(object):
                     elif self.adv_choice == 1:
                          advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
-                    #print("actor_actions", actor_actions)
-                    #print("advantage", advantage)
                     logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
-                    # NOTE : @dhruvramani - Normalizing log probabs variable coz of underflow
-                    # Source : https://stats.stackexchange.com/a/66621
-                    # logp_cloned = logp_cloned - torch.max(logp_cloned)
-                    #print("logp_cloned", logp_cloned)
-                    # zeros = torch.zeros(tuple(logp_cloned.size())).to(device)
-                    # precision, size = torch.Tensor([1e-6]).to(device), torch.Tensor([logp_cloned.size()[-1]]).to(device)
-                    # p_cloned = torch.where(logp_cloned >= (torch.log(precision) - torch.log(size)), torch.exp(logp_cloned), zeros)
-                    # print("p_cloned", p_cloned)
                     logp_actor = self.actor.log_pis(state, actor_actions)
-                    # logp_actor = logp_actor - torch.max(logp_actor)
-                    # p_actor = torch.where(logp_actor >= (torch.log(precision) - torch.log(size)), torch.exp(logp_actor), zeros)
-                    # print("p_actor", p_actor)
                     ratio = torch.exp(logp_actor - logp_cloned)
-                    #print("ratio", ratio)
                     clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
-                    #print("clip_adv", clip_adv)
                     actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
-                    #print("actor_loss", actor_loss)
 
                     # Update through DPG
                     #actor_loss = -self.critic.q1(state, actor_actions).mean()
