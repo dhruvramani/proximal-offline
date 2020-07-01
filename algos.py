@@ -461,7 +461,8 @@ class ProximalOffline(object):
                     # logp_actor = logp_actor - torch.max(logp_actor)
                     # p_actor = torch.where(logp_actor >= (torch.log(precision) - torch.log(size)), torch.exp(logp_actor), zeros)
                     # print("p_actor", p_actor)
-                    ratio = torch.exp(logp_actor - logp_cloned) #p_actor / (p_cloned + 1e-6) #
+                    rat = torch.exp(logp_actor - logp_cloned) #p_actor / (p_cloned + 1e-6) #
+                    ratio = rat.clone()
                     ratio[ratio == float("Inf")] = 1000.0
                     clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
                     actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
