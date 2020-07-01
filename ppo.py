@@ -18,7 +18,7 @@ def cloned_ac(state_dim, action_dim, max_action, replay_buffer, actor_critic=cor
     act_dim = action_dim
 
     # Create actor-critic module
-    ac = actor_critic(obs_dim, act_dim)
+    ac = actor_critic(obs_dim, act_dim).to(device)
     pi_optimizer = Adam(ac.pi.parameters(), lr=pi_lr)
 
     for epoch in range(epochs):
@@ -127,7 +127,7 @@ class PPOBuffer:
 
 
 def ppo(state_dim, action_dim, max_action, cloned_policy, replay_buffer, actor_critic=core.MLPActorCritic, seed=0, 
-        steps_per_epoch=4000, epochs=50, gamma=0.99, clip_ratio=0.2, pi_lr=3e-4,
+        steps_per_epoch=1000, epochs=50, gamma=0.99, clip_ratio=0.2, pi_lr=3e-4,
         vf_lr=1e-3, train_pi_iters=80, train_v_iters=80, lam=0.97, max_ep_len=1000,
         target_kl=0.01, logger_kwargs=dict(), save_freq=10):
 
@@ -235,7 +235,7 @@ def ppo(state_dim, action_dim, max_action, cloned_policy, replay_buffer, actor_c
     """
 
     # Special function to avoid certain slowdowns from PyTorch + MPI combo.
-    setup_pytorch_for_mpi()
+    #setup_pytorch_for_mpi()
 
     # Set up logger and save configuration
     logger = EpochLogger(**logger_kwargs)
@@ -252,17 +252,17 @@ def ppo(state_dim, action_dim, max_action, cloned_policy, replay_buffer, actor_c
     act_dim = action_dim
 
     # Create actor-critic module
-    ac = copy.deepcopy(cloned_policy) #actor_critic(obs_dim, act_dim)
+    ac = copy.deepcopy(cloned_policy).to(device) #actor_critic(obs_dim, act_dim)
 
     # Sync params across processes
-    sync_params(ac)
+    #sync_params(ac)
 
     # Count variables
     var_counts = tuple(core.count_vars(module) for module in [ac.pi, ac.q])
     logger.log('\nNumber of parameters: \t pi: %d, \t v: %d\n'%var_counts)
 
     # Set up experience buffer
-    local_steps_per_epoch = int(steps_per_epoch / num_procs())
+    local_steps_per_epoch = steps_per_epoch #int(steps_per_epoch / num_procs())
     buf = PPOBuffer(obs_dim, act_dim, local_steps_per_epoch, gamma, lam)
 
     # Set up function for computing PPO policy loss
@@ -310,12 +310,12 @@ def ppo(state_dim, action_dim, max_action, cloned_policy, replay_buffer, actor_c
         for i in range(train_pi_iters):
             pi_optimizer.zero_grad()
             loss_pi, pi_info = compute_loss_pi(data)
-            kl = mpi_avg(pi_info['kl'])
-            if kl > 1.5 * target_kl:
-                logger.log('Early stopping at step %d due to reaching max kl.'%i)
-                break
+            # kl = #mpi_avg(pi_info['kl'])
+            # if kl > 1.5 * target_kl:
+            #     logger.log('Early stopping at step %d due to reaching max kl.'%i)
+            #     break
             loss_pi.backward()
-            mpi_avg_grads(ac.pi)    # average grads across MPI processes
+            #mpi_avg_grads(ac.pi)    # average grads across MPI processes
             pi_optimizer.step()
 
         logger.store(StopIter=i)
@@ -325,7 +325,7 @@ def ppo(state_dim, action_dim, max_action, cloned_policy, replay_buffer, actor_c
             vf_optimizer.zero_grad()
             loss_v = compute_loss_v(data)
             loss_v.backward()
-            mpi_avg_grads(ac.q)    # average grads across MPI processes
+            #mpi_avg_grads(ac.q)    # average grads across MPI processes
             vf_optimizer.step()
 
         # Log changes from update
@@ -334,6 +334,8 @@ def ppo(state_dim, action_dim, max_action, cloned_policy, replay_buffer, actor_c
                      KL=kl, Entropy=ent, ClipFrac=cf,
                      DeltaLossPi=(loss_pi.item() - pi_l_old),
                      DeltaLossV=(loss_v.item() - v_l_old))
+
+        print(loss_pi.item(), loss_v.item())
 
     # Prepare for interaction with environment
     start_time = time.time()
