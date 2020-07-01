@@ -68,7 +68,7 @@ class RegularActor(nn.Module):
         a = F.relu(self.l1(state))
         a = F.relu(self.l2(a))
         mean_a = self.mean(a)
-        log_std_a = torch.cat(state.size()[0] * [self.log_std], 0)
+        log_std_a = self.log_std.repeat(state.size()[0], 1)
         
         std_a = torch.exp(log_std_a)
         z = mean_a + std_a * torch.FloatTensor(np.random.normal(0, 1, size=(std_a.size()))).to(device) 
@@ -78,7 +78,7 @@ class RegularActor(nn.Module):
         a = F.relu(self.l1(state))
         a = F.relu(self.l2(a))
         mean_a = self.mean(a)
-        log_std_a = torch.cat(state.size()[0] * [self.log_std], 0)
+        log_std_a = self.log_std.repeat(state.size()[0], 1)
         
         std_a = torch.exp(log_std_a)
         # This trick stabilizes learning (clipping gaussian to a smaller range)
@@ -91,7 +91,7 @@ class RegularActor(nn.Module):
         a = F.relu(self.l1(state))
         a = F.relu(self.l2(a))
         mean_a = self.mean(a)
-        log_std_a = torch.cat(state.size()[0] * [self.log_std], 0)
+        log_std_a = self.log_std.repeat(state.size()[0], 1)
         std_a = torch.exp(log_std_a)
         normal_dist = td.Normal(loc=mean_a, scale=std_a, validate_args=True)
         if raw_action is None:
