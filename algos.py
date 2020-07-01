@@ -54,21 +54,21 @@ def atanh(x):
 
 class RegularActor(nn.Module):
     """A probabilistic actor which does regular stochastic mapping of actions from states"""
-    def __init__(self, state_dim, action_dim, max_action,):
+    def __init__(self, state_dim, action_dim, max_action, batch_size=100):
         super(RegularActor, self).__init__()
         self.l1 = nn.Linear(state_dim, 400)
         self.l2 = nn.Linear(400, 300)
         self.mean = nn.Linear(300, action_dim)
-        log_std = -0.5 * np.ones(action_dim, dtype=np.float32)
-        self.log_std = nn.Linear(300, action_dim) #torch.nn.Parameter(torch.as_tensor(log_std))
-        #print(self.log_std.size())
+        log_std = -0.5 * np.ones(action_dim), dtype=np.float32)
+        self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
+        print(self.log_std.size())
         self.max_action = max_action
     
     def forward(self, state):
         a = F.relu(self.l1(state))
         a = F.relu(self.l2(a))
         mean_a = self.mean(a)
-        log_std_a = self.log_std(a)
+        log_std_a = torch.cat(state.size()[0] * [self.log_std])
         
         std_a = torch.exp(log_std_a)
         z = mean_a + std_a * torch.FloatTensor(np.random.normal(0, 1, size=(std_a.size()))).to(device) 
@@ -78,10 +78,9 @@ class RegularActor(nn.Module):
         a = F.relu(self.l1(state))
         a = F.relu(self.l2(a))
         mean_a = self.mean(a)
-        log_std_a = self.log_std(a)
+        log_std_a = torch.cat(state.size()[0] * [self.log_std])
         
         std_a = torch.exp(log_std_a)
-        print(std_a.size())
         # This trick stabilizes learning (clipping gaussian to a smaller range)
         z = mean_a.unsqueeze(1) +\
              std_a.unsqueeze(1) * torch.FloatTensor(np.random.normal(0, 1, size=(std_a.size(0), num_sample, std_a.size(1)))).to(device).clamp(-0.5, 0.5)
@@ -92,7 +91,7 @@ class RegularActor(nn.Module):
         a = F.relu(self.l1(state))
         a = F.relu(self.l2(a))
         mean_a = self.mean(a)
-        log_std_a = self.log_std(a)
+        log_std_a = torch.cat(state.size()[0] * [self.log_std])
         std_a = torch.exp(log_std_a)
         normal_dist = td.Normal(loc=mean_a, scale=std_a, validate_args=True)
         if raw_action is None:
