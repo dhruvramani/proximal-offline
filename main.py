@@ -115,7 +115,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--env_name", default="hopper-medium-v0")             # D4RL gym environment name
     parser.add_argument("--seed", default=0, type=int)                        # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--eval_freq", default=5e3, type=float)               # How often (time steps) we evaluate
+    parser.add_argument("--eval_freq", default=1e3, type=float)               # How often (time steps) we evaluate
     parser.add_argument("--max_timesteps", default=1e4, type=float)           # Max time steps to run environment for
     parser.add_argument("--version", default='0', type=str)                   # Basically whether to do min(Q), max(Q), mean(Q) over multiple Q networks for policy updates
     parser.add_argument("--lamda", default=0.5, type=float)                   # Unused parameter -- please ignore 

@@ -35,3 +35,31 @@ Training iterations: 50000.0
 2020-05-24 15:29:30.354838 UTC | [BEAR_hopper-medium-v0_19_27780] Raw Action_Divergence Min     0.000713223
 2020-05-24 15:29:30.354892 UTC | [BEAR_hopper-medium-v0_19_27780] Training Epochs              10
 2020-05-24 15:29:30.354951 UTC | [BEAR_hopper-medium-v0_19_27780] --------------------------  -------------
+
+-------- Our's - Cloned Policy ~ Meh ------------
+
+2020-07-01 05:56:10.350584 UTC | [ProximalOffline_hopper-medium-v0_897_80105] ----------------------  ------------
+2020-07-01 05:56:10.350788 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Q_target Mean            340.862
+2020-07-01 05:56:10.350945 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Q_target Std              65.2982
+2020-07-01 05:56:10.351049 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Q_target Max             441.273
+2020-07-01 05:56:10.351165 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Q_target Min              21.294
+2020-07-01 05:56:10.351247 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Actor Loss              2437.62
+2020-07-01 05:56:10.351332 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Critic Loss               34.589
+2020-07-01 05:56:10.351441 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Sampled Actions Mean       0.0488686
+2020-07-01 05:56:10.351525 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Sampled Actions Std        0.565575
+2020-07-01 05:56:10.351672 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Sampled Actions Max        0.990705
+2020-07-01 05:56:10.351784 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Sampled Actions Min       -0.996782
+2020-07-01 05:56:10.351919 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Actor Actions Mean         0.115974
+2020-07-01 05:56:10.352043 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Actor Actions Std          0.620473
+2020-07-01 05:56:10.352117 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Actor Actions Max          0.99438
+2020-07-01 05:56:10.352207 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Actor Actions Min         -0.996608
+2020-07-01 05:56:10.352284 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Current_Q Mean           341.1
+2020-07-01 05:56:10.352373 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Current_Q Std             64.661
+2020-07-01 05:56:10.352484 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Current_Q Max            443.43
+2020-07-01 05:56:10.352565 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Current_Q Min             16.7997
+2020-07-01 05:56:10.352645 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Action_Divergence Mean     1.04823
+2020-07-01 05:56:10.352728 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Action_Divergence Std      0.842961
+2020-07-01 05:56:10.352822 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Action_Divergence Max      4.85156
+2020-07-01 05:56:10.352920 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Action_Divergence Min      0.033378
+2020-07-01 05:56:10.353000 UTC | [ProximalOffline_hopper-medium-v0_897_80105] Training Epochs            2
+2020-07-01 05:56:10.353081 UTC | [ProximalOffline_hopper-medium-v0_897_80105] ----------------------  ------------
