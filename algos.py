@@ -451,13 +451,13 @@ class ProximalOffline(object):
                     elif self.adv_choice == 1:
                          advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
-                    print("actor_actions", actor_actions)
-                    print("advantage", advantage)
+                    #print("actor_actions", actor_actions)
+                    #print("advantage", advantage)
                     logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
                     # NOTE : @dhruvramani - Normalizing log probabs variable coz of underflow
                     # Source : https://stats.stackexchange.com/a/66621
                     # logp_cloned = logp_cloned - torch.max(logp_cloned)
-                    print("logp_cloned", logp_cloned)
+                    #print("logp_cloned", logp_cloned)
                     # zeros = torch.zeros(tuple(logp_cloned.size())).to(device)
                     # precision, size = torch.Tensor([1e-6]).to(device), torch.Tensor([logp_cloned.size()[-1]]).to(device)
                     # p_cloned = torch.where(logp_cloned >= (torch.log(precision) - torch.log(size)), torch.exp(logp_cloned), zeros)
@@ -467,11 +467,11 @@ class ProximalOffline(object):
                     # p_actor = torch.where(logp_actor >= (torch.log(precision) - torch.log(size)), torch.exp(logp_actor), zeros)
                     # print("p_actor", p_actor)
                     ratio = torch.exp(logp_actor - logp_cloned)
-                    print("ratio", ratio)
+                    #print("ratio", ratio)
                     clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
-                    print("clip_adv", clip_adv)
+                    #print("clip_adv", clip_adv)
                     actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
-                    print("actor_loss", actor_loss)
+                    #print("actor_loss", actor_loss)
 
                     # Update through DPG
                     #actor_loss = -self.critic.q1(state, actor_actions).mean()
@@ -486,7 +486,7 @@ class ProximalOffline(object):
                 for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
-                _ = input(" ")
+                #_ = input(" ")
             
         # DO ALL logging here
         logger.record_dict(create_stats_ordered_dict(
