@@ -10,7 +10,7 @@ import algos
 import TD3
 from logger import logger, setup_logger
 from logger import create_stats_ordered_dict
-from ppo import cloned_ac, ppo
+# from ppo import cloned_ac, ppo
 #import point_mass
 
 #import d4rl
@@ -200,8 +200,8 @@ if __name__ == "__main__":
             # # logger.record_tabular('MedianReturn', median_ret)
             # logger.dump_tabular()
             # print("Iter done")
-    elif algo_name == 'PPO':
-        cloned_policy = cloned_ac(state_dim, action_dim, max_action, replay_buffer, steps_per_epoch=1)
+    # elif algo_name == 'PPO':
+    #     cloned_policy = cloned_ac(state_dim, action_dim, max_action, replay_buffer, steps_per_epoch=1)
 
 
     variant = dict(
@@ -266,8 +266,8 @@ if __name__ == "__main__":
             version=args.version, lambda_=float(args.lamda), threshold=float(args.threshold), 
             num_samples_match=args.num_samples_match, use_ensemble=(False if args.use_ensemble_variance == "False" else True),
             adv_choice=args.adv_choice, clip_ratio=args.clip_ratio, train_pi_iters=args.train_pi_iters, train_v_iters=args.train_v_iters)
-    elif algo_name == 'PPO':
-        policy = ppo(state_dim, action_dim, max_action, cloned_policy, replay_buffer)
+    # elif algo_name == 'PPO':
+    #     policy = ppo(state_dim, action_dim, max_action, cloned_policy, replay_buffer)
 
     
     if algo_name != 'PPO':
