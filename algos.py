@@ -59,14 +59,15 @@ class RegularActor(nn.Module):
         self.l1 = nn.Linear(state_dim, 400)
         self.l2 = nn.Linear(400, 300)
         self.mean = nn.Linear(300, action_dim)
-        self.log_std = nn.Linear(300, action_dim)
+        log_std = -0.5 * np.ones(action_dim, dtype=np.float32)
+        self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
         self.max_action = max_action
     
     def forward(self, state):
         a = F.relu(self.l1(state))
         a = F.relu(self.l2(a))
         mean_a = self.mean(a)
-        log_std_a = self.log_std(a)
+        log_std_a = self.log_std
         
         std_a = torch.exp(log_std_a)
         z = mean_a + std_a * torch.FloatTensor(np.random.normal(0, 1, size=(std_a.size()))).to(device) 
@@ -76,7 +77,7 @@ class RegularActor(nn.Module):
         a = F.relu(self.l1(state))
         a = F.relu(self.l2(a))
         mean_a = self.mean(a)
-        log_std_a = self.log_std(a)
+        log_std_a = self.log_std
         
         std_a = torch.exp(log_std_a)
         # This trick stabilizes learning (clipping gaussian to a smaller range)
@@ -89,7 +90,7 @@ class RegularActor(nn.Module):
         a = F.relu(self.l1(state))
         a = F.relu(self.l2(a))
         mean_a = self.mean(a)
-        log_std_a = self.log_std(a)
+        log_std_a = self.log_std
         std_a = torch.exp(log_std_a)
         normal_dist = td.Normal(loc=mean_a, scale=std_a, validate_args=True)
         if raw_action is None:
@@ -454,17 +455,17 @@ class ProximalOffline(object):
                     logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
                     # NOTE : @dhruvramani - Normalizing log probabs variable coz of underflow
                     # Source : https://stats.stackexchange.com/a/66621
-                    logp_cloned = logp_cloned - torch.max(logp_cloned)
+                    # logp_cloned = logp_cloned - torch.max(logp_cloned)
                     print("logp_cloned", logp_cloned)
-                    zeros = torch.zeros(tuple(logp_cloned.size())).to(device)
-                    precision, size = torch.Tensor([1e-6]).to(device), torch.Tensor([logp_cloned.size()[-1]]).to(device)
-                    p_cloned = torch.where(logp_cloned >= (torch.log(precision) - torch.log(size)), torch.exp(logp_cloned), zeros)
-                    print("p_cloned", p_cloned)
+                    # zeros = torch.zeros(tuple(logp_cloned.size())).to(device)
+                    # precision, size = torch.Tensor([1e-6]).to(device), torch.Tensor([logp_cloned.size()[-1]]).to(device)
+                    # p_cloned = torch.where(logp_cloned >= (torch.log(precision) - torch.log(size)), torch.exp(logp_cloned), zeros)
+                    # print("p_cloned", p_cloned)
                     logp_actor = self.actor.log_pis(state, actor_actions)
-                    logp_actor = logp_actor - torch.max(logp_actor)
-                    p_actor = torch.where(logp_actor >= (torch.log(precision) - torch.log(size)), torch.exp(logp_actor), zeros)
-                    print("p_actor", p_actor)
-                    ratio = p_actor / (p_cloned + 1e-7)
+                    # logp_actor = logp_actor - torch.max(logp_actor)
+                    # p_actor = torch.where(logp_actor >= (torch.log(precision) - torch.log(size)), torch.exp(logp_actor), zeros)
+                    # print("p_actor", p_actor)
+                    ratio = torch.exp(logp_actor - logp_cloned)
                     print("ratio", ratio)
                     clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
                     print("clip_adv", clip_adv)

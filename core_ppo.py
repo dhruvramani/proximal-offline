@@ -121,14 +121,14 @@ class MLPActorCritic(nn.Module):
             self.pi = MLPCategoricalActor(obs_dim, action_dim, hidden_sizes, activation)
 
         # build value function
-        self.q  = MLPCritic(obs_dim, action_dim, hidden_sizes, activation)
+        self.q = MLPCritic(obs_dim, action_dim, hidden_sizes, activation)
 
     def step(self, obs):
         with torch.no_grad():
             pi = self.pi._distribution(obs)
             a = pi.sample()
             logp_a = self.pi._log_prob_from_distribution(pi, a)
-            q = self.q(obs, a)
+            q = self.q(obs, )
         return a.numpy(), q.numpy(), logp_a.numpy()
 
     def act(self, obs):

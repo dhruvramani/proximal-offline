@@ -121,7 +121,7 @@ if __name__ == "__main__":
     parser.add_argument("--lamda", default=0.5, type=float)                   # Unused parameter -- please ignore 
     parser.add_argument("--threshold", default=0.05, type=float)              # Unused parameter -- please ignore
     parser.add_argument('--use_bootstrap', default=False, type=bool)          # Whether to use bootstrapped ensembles or plain ensembles
-    parser.add_argument('--algo_name', default="PPO", type=str)              # Which algo to run (see the options below in the main function)
+    parser.add_argument('--algo_name', default="ProximalOffline", type=str)              # Which algo to run (see the options below in the main function)
     parser.add_argument('--mode', default='hardcoded', type=str)              # Whether to do automatic lagrange dual descent or manually tune coefficient of the MMD loss (prefered "auto")
     parser.add_argument('--num_samples_match', default=10, type=int)          # number of samples to do matching in MMD
     parser.add_argument('--mmd_sigma', default=20.0, type=float)              # The bandwidth of the MMD kernel parameter
