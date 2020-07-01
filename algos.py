@@ -450,9 +450,9 @@ class ProximalOffline(object):
 
                     logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
                     print(logp_cloned)
-                    logp_actor = self.actor.log_pis(state, actor_actions) + torch.Tensor([50])
+                    logp_actor = self.actor.log_pis(state, actor_actions) + torch.FloatTensor([50]).to(device)
                     print(logp_actor)
-                    ratio = torch.exp(logp_actor - logp_cloned) / torch.exp(torch.Tensor([50]))
+                    ratio = torch.exp(logp_actor - logp_cloned) / torch.exp(torch.FloatTensor([50]).to(device))
                     print(ratio)
                     clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
                     actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
