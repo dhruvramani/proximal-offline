@@ -71,7 +71,7 @@ class RegularActor(nn.Module):
         
         std_a = torch.exp(log_std_a)
         z = mean_a + std_a * torch.FloatTensor(np.random.normal(0, 1, size=(std_a.size()))).to(device) 
-        return self.max_action * torch.tanh(z)
+        return self.max_action * torch.tanh(z), mean_a, std_a
 
     def sample_multiple(self, state, num_sample=10):
         a = F.relu(self.l1(state))
@@ -296,7 +296,7 @@ class ClonedPolicy(object):
 
     def select_action(self, state):
         state = torch.FloatTensor(state.reshape(1, -1)).to(device)
-        return self.actor(state).cpu().data.numpy().flatten()
+        return self.actor(state)[0].cpu().data.numpy().flatten()
 
     def train(self, replay_buffer, iterations, batch_size=100, num_samples_match=10):
         for it in range(iterations):
@@ -308,11 +308,11 @@ class ClonedPolicy(object):
             done            = torch.FloatTensor(1 - done).to(device)
             mask            = torch.FloatTensor(mask).to(device) 
 
-            pred_action = self.actor(state) #  mean, std =
+            pred_action,  mean, std = self.actor(state) 
             recon_loss = F.mse_loss(pred_action, action)
 
-            #KL_loss = -0.5 * (1 + torch.log(std.pow(2)) - mean.pow(2) - std.pow(2)).mean()
-            actor_loss = recon_loss #+ 0.5 * KL_loss
+            KL_loss = -0.5 * (1 + torch.log(std.pow(2)) - mean.pow(2) - std.pow(2)).mean()
+            actor_loss = recon_loss + 0.5 * KL_loss
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
@@ -414,7 +414,7 @@ class ProximalOffline(object):
                     with torch.no_grad():
                         # Duplicate state 10 times
                         state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
-                        target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
+                        target_Qs = self.critic_target(state_rep, self.actor_target(state_rep)[0])
 
                         # Soft Clipped Double Q-learning 
                         target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
@@ -431,9 +431,9 @@ class ProximalOffline(object):
                     self.critic_optimizer.step()
 
                 for i in range(self.train_pi_iters):
-                    sampled_actions = self.vae.decode(state)
+                    sampled_actions, _, _ = self.cloned_policy.actor(state) #self.vae.decode(state)
                     #target_actor_actions = self.actor_target(state)
-                    actor_actions = self.actor(state)
+                    actor_actions, _, _ = self.actor(state)
                     action_divergence = ((sampled_actions - actor_actions)**2).sum(-1)
 
                     current_q1, current_q2 = self.critic_target(state, action)
@@ -634,7 +634,7 @@ class BEAR(object):
                 state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
                 
                 # Compute value of perturbed actions sampled from the VAE
-                target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
+                target_Qs = self.critic_target(state_rep, self.actor_target(state_rep)[0])
 
                 # Soft Clipped Double Q-learning 
                 target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
@@ -1366,7 +1366,7 @@ class KLControl(object):
 
     def select_action(self, state):
         state = torch.FloatTensor(state.reshape(1, -1)).to(device)
-        return self.actor(state).cpu().data.numpy().flatten()
+        return self.actor(state)[0].cpu().data.numpy().flatten()
 
     def train(self, replay_buffer, iterations, batch_size=100, discount=0.98, tau=0.005):
         for it in range(iterations):

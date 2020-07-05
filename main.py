@@ -134,7 +134,7 @@ if __name__ == "__main__":
     parser.add_argument('--cloning', default="False", type=str)
     parser.add_argument('--num_random', default=10, type=int)
     parser.add_argument('--margin_threshold', default=10, type=float)		  # for DQfD baseline=
-    parser.add_argument('--adv_choice', default=0, type=int)
+    parser.add_argument('--adv_choice', default=1, type=int)
     parser.add_argument('--clip_ratio', default=0.2, type=float)
     parser.add_argument('--cloned_timesteps', default=1e4, type=float)
     parser.add_argument('--cloned_eval_freq', default=1e3, type=float)
