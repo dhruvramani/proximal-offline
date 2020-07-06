@@ -345,7 +345,7 @@ class ProximalOffline(object):
             + First iter - the probabs from the policies are same, hence ratio is one. 
                 - Second Iter - the cloned policy gives probabs as large negative values, main policy is fine - similar values. 
                 - The clip handles that. BUT STILL - sth is wrong. TOO MUCH DEVIATION.
-                - maybe multiply adv w/ 0.5 or sth?
+                - maybe multiply adv w/ 0.5 or sth? - TAKE NEGATIVE
 
 
     '''
@@ -464,7 +464,7 @@ class ProximalOffline(object):
                     logp_actor = self.actor.log_pis(state, actor_actions) 
                     ratio = torch.exp((logp_actor - logp_cloned).clamp(max=50)) 
                     clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
-                    actor_loss = (torch.min(ratio * advantage, clip_adv)).mean()
+                    actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
 
                     # Update through DPG
                     #actor_loss = -self.critic.q1(state, actor_actions).mean()
