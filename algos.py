@@ -390,7 +390,7 @@ class ProximalOffline(object):
             ind = q1.max(0)[1]
         return action[ind].cpu().data.numpy().flatten()
     
-    def train(self, replay_buffer, iterations, train_iters, batch_size=100, discount=0.99, tau=0.005):
+    def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005):
         for it in range(iterations):
             state_np, next_state_np, action, reward, done, mask = replay_buffer.sample(batch_size)
             state           = torch.FloatTensor(state_np).to(device)
