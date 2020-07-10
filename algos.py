@@ -337,18 +337,7 @@ class ClonedPolicy(object):
                 print("Action Divergence {}\n Raw Action Divergence {}".format(action_divergence.mean(), raw_action_divergence.mean()))
 
 class ProximalOffline(object):
-    '''
-        Problems: 
-            + Action divergence around ~1, should be around ~0.1.
-            + Need to test on environments
-            + The advantage fn, - is it right? Q(s, a_p) - Q(s, a_d)
-            + First iter - the probabs from the policies are same, hence ratio is one. 
-                - Second Iter - the cloned policy gives probabs as large negative values, main policy is fine - similar values. 
-                - The clip handles that. BUT STILL - sth is wrong. TOO MUCH DEVIATION.
-                - maybe multiply adv w/ 0.5 or sth? - TAKE NEGATIVE
-
-
-    '''
+   
     def __init__(self, num_qs, state_dim, action_dim, max_action, cloned_policy, delta_conf=0.1, use_bootstrap=True, version=0, lambda_=0.4,
                  threshold=0.05, num_samples_match=10, use_ensemble=True, adv_choice=0, clip_ratio=0.2, train_pi_iters=80, train_v_iters=80):
         latent_dim = action_dim * 2
@@ -401,7 +390,7 @@ class ProximalOffline(object):
             ind = q1.max(0)[1]
         return action[ind].cpu().data.numpy().flatten()
     
-    def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005):
+    def train(self, replay_buffer, iterations, total_iters, batch_size=100, discount=0.99, tau=0.005):
         for it in range(iterations):
             state_np, next_state_np, action, reward, done, mask = replay_buffer.sample(batch_size)
             state           = torch.FloatTensor(state_np).to(device)
@@ -460,12 +449,25 @@ class ProximalOffline(object):
                     elif self.adv_choice == 1:
                          advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
-                    logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
-                    logp_actor = self.actor.log_pis(state, actor_actions) 
-                    ratio = torch.exp((logp_actor - logp_cloned).clamp(max=50)) 
-                    clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
-                    actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
+                    #logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
+                    #logp_actor = self.actor.log_pis(state, actor_actions) 
+                    #ratio = torch.exp((logp_actor - logp_cloned).clamp(max=50)) 
+                    #clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
+                    #actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
+                    actor_loss = -(torch.clamp((1 / (total_iters + it)) * advantage.mean(), min=-1e5))
 
+                    '''
+                    Problems: 
+                        + Action divergence around ~1, should be around ~0.1.
+                        + Need to test on environments
+                        + The advantage fn, - is it right? Q(s, a_p) - Q(s, a_d)
+                        + First iter - the probabs from the policies are same, hence ratio is one. 
+                            - Second Iter - the cloned policy gives probabs as large negative values, main policy is fine - similar values. 
+                            - The clip handles that. BUT STILL - sth is wrong. TOO MUCH DEVIATION.
+                            - maybe multiply adv w/ 0.5 or sth?
+
+
+                    '''
                     # Update through DPG
                     #actor_loss = -self.critic.q1(state, actor_actions).mean()
                     
@@ -607,7 +609,7 @@ class BEAR(object):
             ind = q1.max(0)[1]
         return action[ind].cpu().data.numpy().flatten()
     
-    def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005):
+    def train(self, replay_buffer, iterations, total_iters, batch_size=100, discount=0.99, tau=0.005):
         for it in range(iterations):
             state_np, next_state_np, action, reward, done, mask = replay_buffer.sample(batch_size)
             state           = torch.FloatTensor(state_np).to(device)
@@ -1107,7 +1109,7 @@ class BCQ(object):
             action = self.vae.decode_bc_test(state)
         return action[0].cpu().data.numpy().flatten()
 
-    def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005):
+    def train(self, replay_buffer, iterations, total_iters, batch_size=100, discount=0.99, tau=0.005):
         for it in range(iterations):
             # print ('Iteration : ', it)
             # Sample replay buffer / batch
