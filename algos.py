@@ -390,7 +390,7 @@ class ProximalOffline(object):
             ind = q1.max(0)[1]
         return action[ind].cpu().data.numpy().flatten()
     
-    def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005):
+    def train(self, replay_buffer, iterations, train_iters, batch_size=100, discount=0.99, tau=0.005):
         for it in range(iterations):
             state_np, next_state_np, action, reward, done, mask = replay_buffer.sample(batch_size)
             state           = torch.FloatTensor(state_np).to(device)
@@ -449,6 +449,8 @@ class ProximalOffline(object):
                     elif self.adv_choice == 1:
                          advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
+                    advantage = (1/(self.epoch + 1)) * advantage
+
                     logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
                     logp_actor = self.actor.log_pis(state, actor_actions) 
                     ratio = torch.exp((logp_actor - logp_cloned).clamp(max=50)) 
@@ -480,7 +482,8 @@ class ProximalOffline(object):
                 for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
-            
+        
+        self.epoch = self.epoch + 1
         # DO ALL logging here
         logger.record_dict(create_stats_ordered_dict(
             'Q_target',
