@@ -390,8 +390,8 @@ class ProximalOffline(object):
             ind = q1.max(0)[1]
         return action[ind].cpu().data.numpy().flatten()
     
-    def train(self, replay_buffer, iterations, total_iters, batch_size=100, discount=0.99, tau=0.005):
-        for it in range(1, iterations + 1):
+    def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005):
+        for it in range(iterations):
             state_np, next_state_np, action, reward, done, mask = replay_buffer.sample(batch_size)
             state           = torch.FloatTensor(state_np).to(device)
             action          = torch.FloatTensor(action).to(device)
@@ -449,12 +449,11 @@ class ProximalOffline(object):
                     elif self.adv_choice == 1:
                          advantage = ((actor_q1 - cloned_q1) + (actor_q2 - cloned_q2)) / 2
 
-                    #logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
-                    #logp_actor = self.actor.log_pis(state, actor_actions) 
-                    #ratio = torch.exp((logp_actor - logp_cloned).clamp(max=50)) 
-                    #clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
-                    #actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
-                    actor_loss = -(torch.clamp((1 / (total_iters + it)) * advantage.mean(), min=-1e5))
+                    logp_cloned = self.cloned_policy.actor.log_pis(state, actor_actions)
+                    logp_actor = self.actor.log_pis(state, actor_actions) 
+                    ratio = torch.exp((logp_actor - logp_cloned).clamp(max=50)) 
+                    clip_adv = torch.clamp(ratio, 1 - self.clip_ratio, 1 + self.clip_ratio) * advantage
+                    actor_loss = -(torch.min(ratio * advantage, clip_adv)).mean()
 
                     '''
                     Problems: 
@@ -609,7 +608,7 @@ class BEAR(object):
             ind = q1.max(0)[1]
         return action[ind].cpu().data.numpy().flatten()
     
-    def train(self, replay_buffer, iterations, total_iters, batch_size=100, discount=0.99, tau=0.005):
+    def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005):
         for it in range(iterations):
             state_np, next_state_np, action, reward, done, mask = replay_buffer.sample(batch_size)
             state           = torch.FloatTensor(state_np).to(device)
@@ -1109,7 +1108,7 @@ class BCQ(object):
             action = self.vae.decode_bc_test(state)
         return action[0].cpu().data.numpy().flatten()
 
-    def train(self, replay_buffer, iterations, total_iters, batch_size=100, discount=0.99, tau=0.005):
+    def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005):
         for it in range(iterations):
             # print ('Iteration : ', it)
             # Sample replay buffer / batch

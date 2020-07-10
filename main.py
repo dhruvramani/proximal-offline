@@ -278,7 +278,7 @@ if __name__ == "__main__":
 
         training_iters = 0
         while training_iters < args.max_timesteps: 
-            pol_vals = policy.train(replay_buffer, iterations=int(args.eval_freq), total_iters=training_iters)
+            pol_vals = policy.train(replay_buffer, iterations=int(args.eval_freq))
 
             # NOTE : @dhruvramani - commeneted this for colabs
             # ret_eval, var_ret, median_ret = evaluate_policy(policy)
