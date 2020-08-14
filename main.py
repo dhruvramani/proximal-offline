@@ -10,10 +10,9 @@ import algos
 import TD3
 from logger import logger, setup_logger
 from logger import create_stats_ordered_dict
-# from ppo import cloned_ac, ppo
-#import point_mass
+import point_mass
 
-#import d4rl
+import d4rl
 
 def load_hdf5_mujoco(dataset, replay_buffer):
     """
@@ -156,28 +155,24 @@ if __name__ == "__main__":
     if not os.path.exists("./results"):
         os.makedirs("./results")
 
-    # NOTE : @dhruvramani - commeneted this for colabs
-    # env = gym.make(args.env_name)
-    # env.seed(seed)
-    
+    env = gym.make(args.env_name)
+
+    env.seed(seed)
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    # Load buffer
-    dataset = utils.get_dataset(env_name=args.env_name)
-    replay_buffer = utils.ReplayBuffer()
-    if 'maze' in args.env_name or 'human' in args.env_name or 'cloned' in args.env_name:
-        load_hdf5_others(dataset, replay_buffer)
-    else:
-        load_hdf5_mujoco(dataset, replay_buffer)
-    
-    state_dim = dataset["observations"].shape[1:][0]
-    action_dim = dataset["actions"].shape[1:][0] 
-    max_action = float(dataset["actions"].max(axis=0)[0])
+    state_dim = env.observation_space.shape[0]
+    action_dim = env.action_space.shape[0] 
+    max_action = float(env.action_space.high[0])
     print(state_dim, action_dim)
     print('Max action: ', max_action)
 
-    del dataset
+    # Load buffer
+    replay_buffer = utils.ReplayBuffer()
+    if 'maze' in args.env_name or 'human' in args.env_name or 'cloned' in args.env_name:
+        load_hdf5_others(env.unwrapped.get_dataset(), replay_buffer)
+    else:
+        load_hdf5_mujoco(env.unwrapped.get_dataset(), replay_buffer)
 
     cloned_policy = None
     if algo_name == 'ProximalOffline':
@@ -266,30 +261,25 @@ if __name__ == "__main__":
             version=args.version, lambda_=float(args.lamda), threshold=float(args.threshold), 
             num_samples_match=args.num_samples_match, use_ensemble=(False if args.use_ensemble_variance == "False" else True),
             adv_choice=args.adv_choice, clip_ratio=args.clip_ratio, train_pi_iters=args.train_pi_iters, train_v_iters=args.train_v_iters)
-    # elif algo_name == 'PPO':
-    #     policy = ppo(state_dim, action_dim, max_action, cloned_policy, replay_buffer)
 
     
-    if algo_name != 'PPO':
-        evaluations = []
+    evaluations = []
 
-        episode_num = 0
-        done = True 
+    episode_num = 0
+    done = True 
 
-        training_iters = 0
-        while training_iters < args.max_timesteps: 
-            pol_vals = policy.train(replay_buffer, iterations=int(args.eval_freq))
+    training_iters = 0
+    while training_iters < args.max_timesteps: 
+        pol_vals = policy.train(replay_buffer, iterations=int(args.eval_freq))
 
-            # NOTE : @dhruvramani - commeneted this for colabs
-            # ret_eval, var_ret, median_ret = evaluate_policy(policy)
-            # evaluations.append(ret_eval)
-            # np.save("./results/" + file_name, evaluations)
+        ret_eval, var_ret, median_ret = evaluate_policy(policy)
+        evaluations.append(ret_eval)
+        np.save("./results/" + file_name, evaluations)
 
-            training_iters += args.eval_freq
-            print ("Training iterations: " + str(training_iters))
-            logger.record_tabular('Training Epochs', int(training_iters // int(args.eval_freq)))
-            # logger.record_tabular('AverageReturn', ret_eval)
-            # logger.record_tabular('VarianceReturn', var_ret)
-            # logger.record_tabular('MedianReturn', median_ret)
-            logger.dump_tabular()
-            print("Iter done")
+        training_iters += args.eval_freq
+        print ("Training iterations: " + str(training_iters))
+        logger.record_tabular('Training Epochs', int(training_iters // int(args.eval_freq)))
+        logger.record_tabular('AverageReturn', ret_eval)
+        logger.record_tabular('VarianceReturn', var_ret)
+        logger.record_tabular('MedianReturn', median_ret)
+        logger.dump_tabular()
