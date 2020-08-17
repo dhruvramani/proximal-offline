@@ -180,7 +180,7 @@ class EnsembleCritic(nn.Module):
         return all_qs
 
     def q1(self, state, action):
-        q1 = F.relu(self.l1(torch.cat([state, action], 1)))
+        q1 = F.relu(self.l1(torch.cat((state, action), 1)))
         q1 = F.relu(self.l2(q1))
         q1 = self.l3(q1)
         return q1
@@ -308,7 +308,7 @@ class ClonedPolicy(object):
             done            = torch.FloatTensor(1 - done).to(device)
             mask            = torch.FloatTensor(mask).to(device) 
 
-            pred_action,  mean, std = self.actor(state) 
+            pred_action, mean, std = self.actor(state) 
             recon_loss = F.mse_loss(pred_action, action)
 
             KL_loss = -0.5 * (1 + torch.log(std.pow(2)) - mean.pow(2) - std.pow(2)).mean()
@@ -385,7 +385,7 @@ class ProximalOffline(object):
             samples from the policy -- which biases things to support."""
         with torch.no_grad():
             state = torch.FloatTensor(state.reshape(1, -1)).repeat(10, 1).to(device)
-            action = self.actor(state)
+            action = torch.FloatTensor(self.actor(state)[0])
             q1 = self.critic.q1(state, action)
             ind = q1.max(0)[1]
         return action[ind].cpu().data.numpy().flatten()
@@ -432,9 +432,9 @@ class ProximalOffline(object):
                     self.critic_optimizer.step()
 
                 for i in range(self.train_pi_iters):
-                    sampled_actions, _, _ = self.cloned_policy.actor(state) #self.vae.decode(state)
-                    target_actor_actions = self.actor_target(state)
-                    actor_actions, _, _ = self.actor(state)
+                    sampled_actions = self.cloned_policy.actor(state)[0] #self.vae.decode(state)
+                    target_actor_actions = self.actor_target(state)[0]
+                    actor_actions = self.actor(state)[0]
                     action_divergence = ((sampled_actions - actor_actions)**2).sum(-1) #TODO : change sampled_actions to actions
 
                     current_q1, current_q2 = self.critic_target(state, action)
@@ -606,7 +606,7 @@ class BEAR(object):
             samples from the policy -- which biases things to support."""
         with torch.no_grad():
             state = torch.FloatTensor(state.reshape(1, -1)).repeat(10, 1).to(device)
-            action = self.actor(state)
+            action = torch.FloatTensor(self.actor(state)[0])
             q1 = self.critic.q1(state, action)
             ind = q1.max(0)[1]
         return action[ind].cpu().data.numpy().flatten()
@@ -874,7 +874,7 @@ class BEAR_IS(object):
         # TODO (aviralkumar): Check this out once!  
         with torch.no_grad():
             state = torch.FloatTensor(state.reshape(1, -1)).repeat(10, 1).to(device)
-            action = self.actor(state)
+            action = torch.FloatTensor(self.actor(state)[0])
             q1 = self.critic.q1(state, action)
             ind = q1.max(0)[1]
         return action[ind].cpu().data.numpy().flatten()
@@ -916,7 +916,7 @@ class BEAR_IS(object):
                 state_rep = torch.FloatTensor(np.repeat(next_state_np, 10, axis=0)).to(device)
                 
                 # Compute value of perturbed actions sampled from the VAE
-                target_Qs = self.critic_target(state_rep, self.actor_target(state_rep))
+                target_Qs = self.critic_target(state_rep, self.actor_target(state_rep)[0])
 
                 # Soft-convex combination for target values
                 target_Q = 0.75 * target_Qs.min(0)[0] + 0.25 * target_Qs.max(0)[0]
